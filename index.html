@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Verification Protocol (EVP) - Relying Party Demo</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="glow-bg"></div>
+  
+  <header>
+    <div class="header-container">
+      <div class="logo">
+        <span class="logo-icon">🔒</span>
+        <h1>EVP Relying Party</h1>
+      </div>
+      <div class="badge">EVP Demo Site</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="intro">
+      <h2>Cryptographic Email Verification</h2>
+      <p>
+        This demo represents a <strong>Relying Party (RP)</strong>—a website (like an e-commerce or SaaS site) verifying a user's email. Using the <strong>Email Verification Protocol (EVP)</strong>, we verify the email address instantly and cryptographically with the Identity Provider (IdP), eliminating the need to send a traditional one-time passcode (OTP) or verification link.
+      </p>
+    </section>
+
+    <div class="grid">
+      <!-- Left Column: Controls & Forms -->
+      <div class="card form-card">
+        <div class="tab-header">
+          <button class="tab-btn active" data-tab="signup-tab">Sign Up Form</button>
+          <button class="tab-btn" data-tab="manual-tab">Manual Token Tester</button>
+        </div>
+
+        <!-- Tab 1: Sign Up -->
+        <div id="signup-tab" class="tab-content active">
+          <p class="tab-description">
+            Fill in your email. If your browser supports EVP, selecting your email from the autofill dropdown will automatically populate the hidden cryptographic token.
+          </p>
+          
+          <form id="login-form">
+            <div class="form-group">
+              <label for="email">Email Address</label>
+              <input 
+                type="email" 
+                name="email" 
+                id="email" 
+                autocomplete="username" 
+                placeholder="you@example.com" 
+                required
+              >
+            </div>
+            
+            <!-- Hidden input for the EVP token as per Phase 2 of the guide -->
+            <input 
+              type="hidden" 
+              name="evt" 
+              id="evt" 
+              autocomplete="email-verification-token"
+            >
+            
+            <button type="submit" class="btn btn-primary" id="submit-btn">
+              <span>Sign Up</span>
+              <div class="spinner" id="submit-spinner"></div>
+            </button>
+          </form>
+
+          <div class="demo-helper">
+            <h4>💡 Quick Demo Autofill</h4>
+            <p>Don't have Chrome Canary with the EVP flag enabled? Click below to simulate autofilling the form with the official demo token:</p>
+            <div class="demo-buttons">
+              <button class="btn btn-secondary btn-sm" id="load-demo-btn">
+                Use <code>demo@rowan.fyi</code> Token
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Manual Token Tester -->
+        <div id="manual-tab" class="tab-content">
+          <p class="tab-description">
+            Manually paste a raw EVP token (formatted as <code>SD-JWT~KB-JWT</code>) and its associated email to run the server-side cryptographic verification.
+          </p>
+          <div class="form-group">
+            <label for="manual-email">Target Email Address</label>
+            <input type="email" id="manual-email" placeholder="demo@rowan.fyi">
+          </div>
+          <div class="form-group">
+            <label for="manual-token">Raw EVP Token (SD-JWT~KB-JWT)</label>
+            <textarea id="manual-token" rows="6" placeholder="eyJhbGciOiJFZERTQSIsImtpZCI6ImRlbW8ta2V5LTIwMjYi...~eyJhbGciOiJFZERTQSIsInR5cCI6ImtiK2p3dCJ9..."></textarea>
+          </div>
+          <button class="btn btn-primary" id="manual-verify-btn">
+            <span>Verify Token</span>
+            <div class="spinner" id="manual-spinner"></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Column: Results & Trace -->
+      <div class="card trace-card">
+        <div class="trace-header">
+          <h3>Verification Status</h3>
+          <span class="status-badge idle" id="overall-status">Idle</span>
+        </div>
+
+        <!-- Success Message -->
+        <div class="success-banner hidden" id="success-banner">
+          <div class="success-icon">🎉</div>
+          <div class="success-content">
+            <h4>Email Successfully Verified Cryptographically!</h4>
+            <p>No verification email was sent.</p>
+            <div class="verified-badge">
+              Verified Identity: <strong id="verified-email-text">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Message -->
+        <div class="error-banner hidden" id="error-banner">
+          <div class="error-icon">❌</div>
+          <div class="error-content">
+            <h4>Verification Failed</h4>
+            <p id="error-message-text">The cryptographic token could not be verified.</p>
+          </div>
+        </div>
+
+        <!-- Step-by-Step Trace -->
+        <div class="trace-steps-container">
+          <h4>EVP Cryptographic Verification Trace</h4>
+          <p class="trace-subtitle">Review the server-to-server operations, inputs, and outputs executed during verification:</p>
+          
+          <div class="trace-steps" id="trace-steps-list">
+            <div class="trace-placeholder">
+              Submit the form or load the demo token to view the cryptographic trace.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-container">
+      <p>EVP Relying Party Demo &bull; Built with vanilla HTML/CSS/JS</p>
+    </div>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
