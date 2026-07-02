@@ -266,6 +266,10 @@ body.light-theme {
   padding: 0;
 }
 
+.hidden {
+  display: none !important;
+}
+
 body {
   background-color: var(--bg-color);
   color: var(--text-primary);
