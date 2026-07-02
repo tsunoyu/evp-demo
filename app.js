@@ -228,7 +228,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     const tokenAudience = kbPayload.aud;
     const tokenNonce = kbPayload.nonce;
     
-    const calculatedEvtHash = await sha256Base64Url(sdJwtString);
+    const calculatedEvtHash = await sha256Base64Url(sdJwtString + '~');
     const tokenHash = kbPayload.sd_hash;
 
     const inputs = {
