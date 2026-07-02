@@ -665,3 +665,59 @@ footer {
   color: var(--text-muted);
   font-size: 0.8rem;
 }
+
+/* Console Log Terminal */
+.console-container {
+  margin-bottom: 1.5rem;
+}
+
+.console-container h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.console-log {
+  background-color: #05070f;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+}
+
+.console-line {
+  color: #d1d5db;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.console-line .timestamp {
+  color: var(--text-muted);
+  margin-right: 0.75rem;
+  font-weight: 500;
+}
+
+.console-line.system {
+  color: #60a5fa; /* Light blue for system messages */
+}
+
+.console-line.success {
+  color: var(--success-color);
+}
+
+.console-line.error {
+  color: var(--error-color);
+}
+
+.console-line.highlight {
+  color: #fbbf24; /* Amber for highlights or warnings */
+}
+

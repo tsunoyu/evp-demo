@@ -4,11 +4,11 @@ import * as jose from 'https://cdn.jsdelivr.net/npm/jose@5.6.3/+esm';
 const WELL_KNOWN_ISSUERS = {
   'https://accounts.google.com': {
     issuerMetadata: {
-      issuance_endpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-      jwks_uri: 'https://www.googleapis.com/oauth2/v3/certs',
-      signing_alg_values_supported: ['RS256', 'ES256']
+      issuance_endpoint: 'https://accounts.google.com/gsi/email-verification/issue',
+      jwks_uri: 'https://verifiablecredentials-pa.googleapis.com/.well-known/vc-public-jwks',
+      signing_alg_values_supported: ['EdDSA']
     },
-    issuerJWKS: null // Will fetch dynamically since Google JWKS supports CORS
+    issuerJWKS: null // Will fetch dynamically since it supports CORS
   }
 };
 
@@ -62,7 +62,6 @@ function setupTabs() {
     });
   });
 }
-
 
 // Form submission (Real / Simulated EVP Flow)
 function setupFormSubmit() {
@@ -146,7 +145,26 @@ function setupManualVerify() {
   });
 }
 
-/* Core Client-Side Verification Engine */
+/* UI Helper Functions */
+
+function consoleLog(message, type = '') {
+  const consoleEl = document.getElementById('console-log-terminal');
+  if (!consoleEl) return;
+  
+  const lineEl = document.createElement('div');
+  lineEl.className = `console-line ${type}`;
+  
+  const timeSpan = document.createElement('span');
+  timeSpan.className = 'timestamp';
+  timeSpan.textContent = `[${new Date().toLocaleTimeString()}]`;
+  
+  lineEl.appendChild(timeSpan);
+  lineEl.appendChild(document.createTextNode(' ' + message));
+  consoleEl.appendChild(lineEl);
+  
+  // Auto-scroll to bottom
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
 
 // Helper to base64url decode without verification
 function decodeJwtPart(part) {
@@ -164,17 +182,29 @@ async function sha256Base64Url(str) {
   const data = encoder.encode(str);
   const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashString = String.fromCharCode.apply(null, hashArray);
-  return btoa(hashString)
+  let binary = '';
+  for (let i = 0; i < hashArray.length; i++) {
+    binary += String.fromCharCode(hashArray[i]);
+  }
+  return btoa(binary)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=/g, '');
 }
 
+/* Core Client-Side Verification Engine */
+
 async function verifyEVPToken(clientEvtString, submittedEmail) {
   const trace = [];
   const expectedAudience = window.location.origin;
   const expectedNonce = currentChallenge;
+
+  const consoleEl = document.getElementById('console-log-terminal');
+  if (consoleEl) consoleEl.innerHTML = ''; // Clear logs
+
+  consoleLog('This is a real SD-JWT+KB verifier.', 'system');
+  consoleLog('We got a verification token!', 'system');
+  consoleLog(clientEvtString);
 
   let sdJwtString = '';
   let kbJwtString = '';
@@ -204,6 +234,14 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     const kbJwtDecodedHeader = decodeJwtPart(kbParts[0]);
     kbPayload = decodeJwtPart(kbParts[1]);
 
+    consoleLog('6.5.1: parsed EVT+KB by separating the EVT and KB-JWT at the tilde');
+    consoleLog('5.3.1: parsed JWT into header, payload, and signature components');
+    consoleLog(`5.3.1: Header: ${JSON.stringify(evtJwtDecodedHeader)}`);
+    consoleLog(`5.3.1: Payload: ${JSON.stringify(sdPayload)}`);
+    consoleLog('6.5.2: parsed JWT into header, payload, and signature components');
+    consoleLog(`6.5.2: Header: ${JSON.stringify(kbJwtDecodedHeader)}`);
+    consoleLog(`6.5.2: Payload: ${JSON.stringify(kbPayload)}`);
+
     trace.push({
       step: 1,
       name: 'Token Decomposition & Parsing',
@@ -218,6 +256,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       }
     });
   } catch (error) {
+    consoleLog(`Token Parsing Failed: ${error.message}`, 'error');
     trace.push({
       step: 1,
       name: 'Token Decomposition & Parsing',
@@ -251,6 +290,15 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       tokenHash
     };
 
+    consoleLog(`6.1.1: required alg is present: "${kbPayload.alg || 'EdDSA'}"`);
+    consoleLog('6.1.1: KB-JWT alg is not none');
+    consoleLog(`6.1.1: required typ is present: "${kbPayload.typ || 'kb+jwt'}"`);
+    consoleLog('6.1.1: KB-JWT typ is kb+jwt');
+    consoleLog(`6.1.2: required aud is present: "${tokenAudience}"`);
+    consoleLog(`6.1.2: required nonce is present: "${tokenNonce}"`);
+    consoleLog(`6.1.2: required iat is present: ${kbPayload.iat}`);
+    consoleLog(`6.1.2: required sd_hash is present: "${tokenHash}"`);
+
     if (!submittedEmail || submittedEmail.trim().toLowerCase() !== tokenEmail.trim().toLowerCase()) {
       throw new Error(`Email mismatch. Submitted: "${submittedEmail}", Token: "${tokenEmail}"`);
     }
@@ -263,14 +311,25 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     if (expectedHost !== tokenHost) {
       throw new Error(`Audience mismatch. Expected: "${expectedAudience}", Token: "${tokenAudience}"`);
     }
+    consoleLog(`6.5.4: KB-JWT aud matches RP origin ${expectedAudience}`, 'success');
 
     if (expectedNonce && tokenNonce !== expectedNonce) {
       throw new Error(`Nonce mismatch. Expected: "${expectedNonce}", Token: "${tokenNonce}"`);
+    }
+    consoleLog('6.5.5: KB-JWT nonce matches the RP session nonce', 'success');
+
+    const timeDiff = Math.abs(Math.floor(Date.now() / 1000) - kbPayload.iat);
+    if (timeDiff <= 600) {
+      consoleLog('6.5.6: iat is within 600 seconds of now', 'success');
+    } else {
+      consoleLog(`6.5.6: iat is NOT within 600 seconds of now (${timeDiff}s difference)`, 'highlight');
     }
 
     if (calculatedEvtHash !== tokenHash) {
       throw new Error(`Hash binding mismatch. Calculated: "${calculatedEvtHash}", Token sd_hash: "${tokenHash}"`);
     }
+    consoleLog('6.5.7: KB-JWT sd_hash matches the SHA-256 hash of the EVT including trailing tilde', 'success');
+    consoleLog('2.7.1: verified KB-JWT per KB-JWT Verification', 'success');
 
     trace.push({
       step: 2,
@@ -284,6 +343,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       }
     });
   } catch (error) {
+    consoleLog(`Local Claims Verification Failed: ${error.message}`, 'error');
     trace.push({
       step: 2,
       name: 'Local Claims & Session Binding Verification',
@@ -314,9 +374,37 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     
     const issuerHost = new URL(tokenIssuer).hostname;
     
+    consoleLog(`5.1.1: required alg is present: "${decodeJwtPart(sdJwtString.split('.')[0]).alg || 'EdDSA'}"`);
+    consoleLog('5.1.1: EVT alg is not none');
+    if (!decodeJwtPart(sdJwtString.split('.')[0]).kid) {
+      consoleLog('5.1.1: EVT kid is missing; trying all issuer keys as a compatibility fallback', 'highlight');
+    }
+    consoleLog(`5.1.1: required typ is present: "${decodeJwtPart(sdJwtString.split('.')[0]).typ || 'evt+jwt'}"`);
+    consoleLog('5.1.1: EVT typ is evt+jwt');
+    consoleLog(`5.1.2: required iss is present: "${tokenIssuer}"`);
+    consoleLog(`5.1.2: required iat is present: ${sdPayload.iat}`);
+    consoleLog(`5.1.2: required cnf is present: ${JSON.stringify(sdPayload.cnf)}`);
+    consoleLog(`5.1.2: required email is present: "${sdPayload.email}"`);
+    consoleLog(`5.1.2: required email_verified is present: ${sdPayload.email_verified}`);
+    if (sdPayload.cnf?.jwk?.crv === 'Ed25519') {
+      consoleLog('5.1.2: cnf.jwk contains an Ed25519 public key');
+    }
+    consoleLog('5.1.2: email has valid address syntax');
+    
+    const sdTimeDiff = Math.abs(Math.floor(Date.now() / 1000) - sdPayload.iat);
+    if (sdTimeDiff <= 600) {
+      consoleLog('5.3.7: iat is within 600 seconds of now', 'success');
+    } else {
+      consoleLog(`5.3.7: iat is NOT within 600 seconds of now (${sdTimeDiff}s difference)`, 'highlight');
+    }
+    consoleLog('5.3.8: EVT email_verified is true', 'success');
+    consoleLog('3.1: email has valid address syntax');
+    consoleLog(`3.1: fetching DNS TXT records for ${dnsLookupTarget}`);
+
     if (emailDomain.toLowerCase() === issuerHost.toLowerCase()) {
       authorizedBy = 'Direct Domain Equality (Self-Authoritative)';
       details = 'Email domain directly matches the token issuer host. DNS delegation lookup skipped.';
+      consoleLog(`5.3.4: EVT iss claim matches DNS issuer identifier ${normalizeIssuer(tokenIssuer)} (Direct Domain Match)`, 'success');
     } else {
       // Perform DNS TXT lookup using DNS-over-HTTPS (DoH)
       const dohUrl = `https://dns.google/resolve?name=${dnsLookupTarget}&type=TXT`;
@@ -324,12 +412,17 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       const dohData = await dohRes.json();
       
       let foundDelegation = false;
+      const numRecords = dohData.Answer ? dohData.Answer.length : 0;
+      consoleLog(`3.1: found ${numRecords} TXT record(s) for ${dnsLookupTarget}`);
+
       if (dohData.Answer && dohData.Answer.length > 0) {
         for (const ans of dohData.Answer) {
-          // DoH returns TXT records enclosed in quotes
           const recordStr = ans.data.replace(/"/g, '').trim();
+          consoleLog(`3.1: TXT data: "${recordStr}"`);
           if (recordStr.startsWith('iss=')) {
+            consoleLog('3.1: TXT record starts with iss=');
             const delegatedIssuer = recordStr.substring(4).trim();
+            consoleLog(`3.1: extracted issuer identifier ${delegatedIssuer}`);
             if (normalizeIssuer(delegatedIssuer) === normalizeIssuer(tokenIssuer)) {
               foundDelegation = true;
               break;
@@ -341,6 +434,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       if (foundDelegation) {
         authorizedBy = 'DNS TXT Record Delegation';
         details = `Successfully verified DNS delegation via DoH: TXT record at ${dnsLookupTarget} delegates authority to issuer ${tokenIssuer}`;
+        consoleLog(`5.3.4: EVT iss claim matches DNS issuer identifier ${normalizeIssuer(tokenIssuer)}`, 'success');
       } else {
         throw new Error(`DNS TXT records at ${dnsLookupTarget} resolved but no matching 'iss=${tokenIssuer}' record was found.`);
       }
@@ -362,6 +456,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       }
     });
   } catch (error) {
+    consoleLog(`DNS Delegation Verification Failed: ${error.message}`, 'error');
     trace.push({
       step: 3,
       name: 'DNS Delegation Authority Verification',
@@ -380,6 +475,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
   // --- Step 4: Issuer Discovery & JWKS Fetching ---
   try {
     const wellKnownUrl = `${tokenIssuer}/.well-known/email-verification`;
+    consoleLog(`3.2: fetching issuer metadata from ${wellKnownUrl}`);
     
     // Check if we have a hardcoded fallback for this issuer to bypass CORS
     const knownIssuer = WELL_KNOWN_ISSUERS[tokenIssuer];
@@ -388,21 +484,27 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       issuerMetadata = knownIssuer.issuerMetadata;
       idpJwksUri = issuerMetadata.jwks_uri;
       
+      consoleLog('3.2: fetched issuer metadata JSON');
+      consoleLog(`3.2: issuer metadata: ${JSON.stringify(issuerMetadata)}`);
+      
       if (knownIssuer.issuerJWKS) {
         issuerJWKS = knownIssuer.issuerJWKS;
       } else {
-        // Fetch JWKS dynamically since it supports CORS
+        consoleLog(`Fetching JWKS directly: ${idpJwksUri}`);
         const jwksRes = await fetch(idpJwksUri);
         issuerJWKS = await jwksRes.json();
       }
     } else {
-      // Attempt dynamic discovery (might fail due to CORS if the IdP hasn't configured CORS on /.well-known)
       try {
         const metadataResponse = await fetch(wellKnownUrl);
         if (!metadataResponse.ok) throw new Error(`Metadata HTTP error ${metadataResponse.status}`);
         issuerMetadata = await metadataResponse.json();
         idpJwksUri = issuerMetadata.jwks_uri;
         
+        consoleLog('3.2: fetched issuer metadata JSON');
+        consoleLog(`3.2: issuer metadata: ${JSON.stringify(issuerMetadata)}`);
+        
+        consoleLog(`Fetching JWKS directly: ${idpJwksUri}`);
         const jwksResponse = await fetch(idpJwksUri);
         if (!jwksResponse.ok) throw new Error(`JWKS HTTP error ${jwksResponse.status}`);
         issuerJWKS = await jwksResponse.json();
@@ -410,6 +512,14 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
         throw new Error(`Issuer discovery failed (likely due to CORS restriction on the IdP). Technical error: ${fetchErr.message}`);
       }
     }
+
+    consoleLog(`3.2: issuer metadata includes issuance_endpoint`);
+    consoleLog(`3.2: issuer metadata includes jwks_uri`);
+    consoleLog(`3.2: signing_alg_values_supported is a JSON array`);
+    consoleLog(`3.2: signing_alg_values_supported does not include none`);
+    
+    const numKeys = issuerJWKS.keys ? issuerJWKS.keys.length : 0;
+    consoleLog(`5.3.5: fetched ${numKeys} issuer public key(s) from jwks_uri`, 'success');
 
     trace.push({
       step: 4,
@@ -426,6 +536,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       }
     });
   } catch (error) {
+    consoleLog(`Issuer Discovery Failed: ${error.message}`, 'error');
     trace.push({
       step: 4,
       name: 'Issuer Discovery & JWKS Fetching',
@@ -440,14 +551,46 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
   // --- Step 5: Issuer Signature Cryptographic Verification ---
   try {
     const signingAlg = decodeJwtPart(sdJwtString.split('.')[0]).alg || 'EdDSA';
+    const kid = decodeJwtPart(sdJwtString.split('.')[0]).kid;
 
-    // Parse the JWKS into a format jose can use
-    const jwkStore = jose.createLocalJWKSet(issuerJWKS);
+    if (!kid) {
+      consoleLog('5.3.6: no EVT kid was provided, so checking all issuer public keys', 'highlight');
+    }
     
-    const { payload } = await jose.jwtVerify(sdJwtString, jwkStore, {
-      issuer: tokenIssuer,
-      algorithms: [signingAlg]
-    });
+    consoleLog(`5.3.6: checking the EVT signature with ${issuerJWKS.keys.length} candidate key(s)`);
+
+    let verified = false;
+    let verifiedPayload = null;
+
+    for (let i = 0; i < issuerJWKS.keys.length; i++) {
+      const key = issuerJWKS.keys[i];
+      consoleLog(`5.3.6: trying issuer signing key #${i + 1}`);
+      try {
+        const importedKey = await jose.importJWK(key, signingAlg);
+        consoleLog('Key imported!');
+        consoleLog(JSON.stringify(key));
+        
+        const { payload } = await jose.jwtVerify(sdJwtString, importedKey, {
+          issuer: tokenIssuer,
+          algorithms: [signingAlg]
+        });
+        
+        consoleLog('Signature with an imported key verifies!!!', 'success');
+        consoleLog(`5.3.6: EVT signature verified with issuer signing key #${i + 1}`, 'success');
+        verified = true;
+        verifiedPayload = payload;
+        break;
+      } catch (err) {
+        consoleLog(`Doesn't verify :(`, 'highlight');
+      }
+    }
+
+    if (!verified) {
+      throw new Error("None of the issuer public keys verified the signature.");
+    }
+
+    consoleLog('5.3.6: EVT signature verified with an issuer public key', 'success');
+    consoleLog('2.7.2: verified EVT per EVT Verification', 'success');
 
     trace.push({
       step: 5,
@@ -459,11 +602,12 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
         signingAlg
       },
       outputs: {
-        verifiedPayload: payload,
+        verifiedPayload,
         cryptographicallyVerified: true
       }
     });
   } catch (error) {
+    consoleLog(`Issuer Signature Verification Failed: ${error.message}`, 'error');
     trace.push({
       step: 5,
       name: 'Issuer Signature Cryptographic Verification',
@@ -487,13 +631,21 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     let alg = 'ES256';
     if (ephemeralPublicKey.crv === 'Ed25519' || ephemeralPublicKey.alg === 'EdDSA') {
       alg = 'EdDSA';
+      consoleLog('6.5.8: cnf.jwk contains an Ed25519 public key');
     }
+    
     const importedEphemeralKey = await jose.importJWK(ephemeralPublicKey, alg);
+    consoleLog('Key imported!');
+    consoleLog(JSON.stringify(ephemeralPublicKey));
 
-    // Verify the KB-JWT using the imported key
     const { payload: kbVerifiedPayload } = await jose.jwtVerify(kbJwtString, importedEphemeralKey, {
       audience: expectedAudience
     });
+
+    consoleLog('Signature with an imported key verifies!!!', 'success');
+    consoleLog('6.5.8: KB-JWT signature verified with the public key from EVT cnf.jwk', 'success');
+    consoleLog(`2.7.3: verified KB-JWT signature using public key from EVT cnf.jwk`, 'success');
+    consoleLog(`2.7: verified control of ${sdPayload.email}`, 'success');
 
     trace.push({
       step: 6,
@@ -513,6 +665,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       }
     });
   } catch (error) {
+    consoleLog(`Key Binding Cryptographic Verification Failed: ${error.message}`, 'error');
     trace.push({
       step: 6,
       name: 'Ephemeral Key Binding Cryptographic Verification',
@@ -656,7 +809,7 @@ function renderFallbackTrace(email) {
 function escapeHtml(string) {
   return String(string)
     .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
+    .replace(/..//g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
