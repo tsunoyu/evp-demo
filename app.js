@@ -1,9 +1,5 @@
 import * as jose from 'https://cdn.jsdelivr.net/npm/jose@5.6.3/+esm';
 
-// Hardcoded official demo token from rowan.fyi for simulated autofill
-const MOCK_DEMO_EMAIL = 'demo@rowan.fyi';
-const MOCK_DEMO_TOKEN = 'eyJhbGciOiJFZERTQSIsImtpZCI6ImRlbW8ta2V5LTIwMjYiLCJ0eXAiOiJldnQrand0In0.eyJpc3MiOiJodHRwczovL3Jvd2FuLmZ5aSIsImlhdCI6MTc4Mjk4OTM4NSwiZXhwIjoxNzgyOTg5Njg1LCJjbmYiOnsiandrIjp7ImFsZyI6IkVkRFNBIiwiY3J2IjoiRWQyNTUxOSIsImt0eSI6Ik9LUCIsIngiOiJwVEpXNy1iWEJBT0ZMTDhIb3ZYS1k3azNnaVRQT1N4WFRDSHYyZFNJRVZBIn19LCJlbWFpbCI6ImRlbW9Acm93YW4uZnlpIiwiZW1haWxfdmVyaWZpZWQiOnRydWV9.e6P6X29g0q0wFA9_a_bDeyMO7TjY7cxT931SQxgMtPnLNvQ1M3RRUW-oIx6rK2CjevesXV873mq6qzHGVMl-CQ~eyJhbGciOiJFZERTQSIsInR5cCI6ImtiK2p3dCJ9.eyJhdWQiOiJodHRwczovL3Jvd2FuLmZ5aSIsImlhdCI6MTc4Mjk4OTM4NSwibm9uY2UiOiJjOTE3NjJiYi01ZjUwLTQ2YTItOGFiYi05NzdkYTE3ODExNGIiLCJzZF9oYXNoIjoiWkQ0NTNGN3hwR1J0cmdhVjRTTmlZUzh6bkE2QzlwdmFLd0Q2elBTSDZVOCJ9.ukYv79RIDtbfqBab86EMYOX8d-zDz6ThHDVPdpJ5vIXju1JHRrTiCnH7CbOfrxcq6H4sND9N_mWWummrOyEMDw';
-
 // Well-known issuers dictionary to bypass CORS issues on /.well-known endpoints
 const WELL_KNOWN_ISSUERS = {
   'https://accounts.google.com': {
@@ -13,32 +9,15 @@ const WELL_KNOWN_ISSUERS = {
       signing_alg_values_supported: ['RS256', 'ES256']
     },
     issuerJWKS: null // Will fetch dynamically since Google JWKS supports CORS
-  },
-  'https://rowan.fyi': {
-    issuerMetadata: {
-      issuance_endpoint: 'https://rowan.fyi/made/email-provider/issuance',
-      jwks_uri: 'https://rowan.fyi/made/email-provider/jwks',
-      signing_alg_values_supported: ['EdDSA']
-    },
-    issuerJWKS: {
-      keys: [
-        {
-          kty: 'OKP',
-          crv: 'Ed25519',
-          x: 'bovaHIXvLOKA9ZKRpZfovzLmG-HbUFD1ec-GOjldpRs',
-          kid: 'demo-key-2026'
-        }
-      ]
-    }
   }
 };
+
 
 let currentChallenge = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   initChallenge();
   setupTabs();
-  setupDemoButton();
   setupFormSubmit();
   setupManualVerify();
 });
@@ -76,26 +55,6 @@ function setupTabs() {
   });
 }
 
-// Quick Demo Autofill helper
-function setupDemoButton() {
-  const loadDemoBtn = document.getElementById('load-demo-btn');
-  const emailInput = document.getElementById('email');
-  const evtInput = document.getElementById('evt');
-
-  loadDemoBtn.addEventListener('click', () => {
-    emailInput.value = MOCK_DEMO_EMAIL;
-    evtInput.value = MOCK_DEMO_TOKEN;
-    
-    emailInput.style.borderColor = 'var(--success-color)';
-    evtInput.style.borderColor = 'var(--success-color)';
-    setTimeout(() => {
-      emailInput.style.borderColor = '';
-      evtInput.style.borderColor = '';
-    }, 1000);
-
-    console.log('Demo token loaded.');
-  });
-}
 
 // Form submission (Real / Simulated EVP Flow)
 function setupFormSubmit() {
@@ -291,20 +250,13 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       throw new Error('Email verified claim is not true.');
     }
     
-    // For GitHub Pages / Local testing, let's relax audience and nonce checks if it's the official static demo token.
-    if (tokenAudience === 'https://rowan.fyi') {
-      inputs.audienceWarning = 'Audience is https://rowan.fyi (matching the static demo token). Bypassing strict origin check for demo purposes.';
-    } else {
-      const expectedHost = new URL(expectedAudience).host;
-      const tokenHost = new URL(tokenAudience).host;
-      if (expectedHost !== tokenHost) {
-        throw new Error(`Audience mismatch. Expected: "${expectedAudience}", Token: "${tokenAudience}"`);
-      }
+    const expectedHost = new URL(expectedAudience).host;
+    const tokenHost = new URL(tokenAudience).host;
+    if (expectedHost !== tokenHost) {
+      throw new Error(`Audience mismatch. Expected: "${expectedAudience}", Token: "${tokenAudience}"`);
     }
 
-    if (tokenNonce === 'c91762bb-5f50-46a2-8abb-977da178114b') {
-      inputs.nonceWarning = 'Nonce matches the static demo token nonce. Bypassing strict session check for demo purposes.';
-    } else if (expectedNonce && tokenNonce !== expectedNonce) {
+    if (expectedNonce && tokenNonce !== expectedNonce) {
       throw new Error(`Nonce mismatch. Expected: "${expectedNonce}", Token: "${tokenNonce}"`);
     }
 
@@ -382,13 +334,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
         authorizedBy = 'DNS TXT Record Delegation';
         details = `Successfully verified DNS delegation via DoH: TXT record at ${dnsLookupTarget} delegates authority to issuer ${tokenIssuer}`;
       } else {
-        // Fallback for rowan.fyi demo token in case of sandbox DNS issues
-        if (emailDomain === 'rowan.fyi' && tokenIssuer === 'https://rowan.fyi') {
-          authorizedBy = 'Direct Domain Equality (Demo Fallback)';
-          details = 'Simulated delegation: rowan.fyi is self-authoritative for the demo token.';
-        } else {
-          throw new Error(`DNS TXT records at ${dnsLookupTarget} resolved but no matching 'iss=${tokenIssuer}' record was found.`);
-        }
+        throw new Error(`DNS TXT records at ${dnsLookupTarget} resolved but no matching 'iss=${tokenIssuer}' record was found.`);
       }
     }
 
@@ -537,11 +483,8 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     const importedEphemeralKey = await jose.importJWK(ephemeralPublicKey, alg);
 
     // Verify the KB-JWT using the imported key
-    // Relax audience check if it's the static demo token
-    const audienceOption = kbPayload.aud === 'https://rowan.fyi' ? 'https://rowan.fyi' : expectedAudience;
-    
     const { payload: kbVerifiedPayload } = await jose.jwtVerify(kbJwtString, importedEphemeralKey, {
-      audience: audienceOption
+      audience: expectedAudience
     });
 
     trace.push({
