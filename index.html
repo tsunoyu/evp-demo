@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Email Verification Protocol (EVP) - Relying Party Demo</title>
+  <title>EVP Cryptographic Verification Demo</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,100 +18,93 @@
         <span class="logo-icon">🔒</span>
         <h1>EVP Relying Party</h1>
       </div>
-      <div class="badge">EVP Demo Site</div>
+      <div class="badge">EVP Verified</div>
     </div>
   </header>
 
   <main class="container">
-    <section class="intro">
-      <h2>Cryptographic Email Verification</h2>
-      <p>
-        This demo represents a <strong>Relying Party (RP)</strong>—a website (like an e-commerce or SaaS site) verifying a user's email. Using the <strong>Email Verification Protocol (EVP)</strong>, we verify the email address instantly and cryptographically with the Identity Provider (IdP), eliminating the need to send a traditional one-time passcode (OTP) or verification link.
-      </p>
-    </section>
-
-    <div class="grid">
-      <!-- Left Column: Controls & Forms -->
-      <div class="card form-card">
-        <div class="form-container">
-          <p class="form-description">
-            Select your email from the autofill dropdown to verify it cryptographically.
-          </p>
-          
-          <form id="login-form">
-            <div class="form-group">
-              <label for="email">Email Address</label>
-              <input 
-                type="email" 
-                name="email" 
-                id="email" 
-                autocomplete="username" 
-                placeholder="you@example.com" 
-                required
-              >
-            </div>
-            
-            <!-- Hidden input for the EVP token as per Phase 2 of the guide -->
+    <!-- Centered Sign Up Card -->
+    <div class="card form-card centered-card">
+      <div class="form-container">
+        <h2>Create Your Account</h2>
+        <p class="form-description">
+          Select your email from the autofill dropdown to verify it instantly and cryptographically.
+        </p>
+        
+        <form id="login-form">
+          <div class="form-group">
+            <label for="email">Email Address</label>
             <input 
-              type="hidden" 
-              name="evt" 
-              id="evt" 
-              autocomplete="email-verification-token"
+              type="email" 
+              name="email" 
+              id="email" 
+              autocomplete="username" 
+              placeholder="you@gmail.com" 
+              required
             >
-            
-            <button type="submit" class="btn btn-primary" id="submit-btn">
-              <span>Sign Up</span>
-              <div class="spinner" id="submit-spinner"></div>
-            </button>
-          </form>
+          </div>
+          
+          <!-- Hidden input for the EVP token as per Phase 2 of the guide -->
+          <input 
+            type="hidden" 
+            name="evt" 
+            id="evt" 
+            autocomplete="email-verification-token"
+          >
+          
+          <button type="submit" class="btn btn-primary" id="submit-btn">
+            <span>Sign Up with EVP</span>
+            <div class="spinner" id="submit-spinner"></div>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Success / Failure Banners (Centered) -->
+    <div class="status-container centered-card">
+      <!-- Success Message -->
+      <div class="success-banner hidden" id="success-banner">
+        <div class="success-icon">🎉</div>
+        <div class="success-content">
+          <h4>Email Successfully Verified!</h4>
+          <p>Verified cryptographically. No verification email was sent.</p>
+          <div class="verified-badge">
+            Identity: <strong id="verified-email-text">-</strong>
+          </div>
         </div>
       </div>
-      
-      <!-- Right Column: Results & Trace -->
-      <div class="card trace-card">
-        <div class="trace-header">
-          <h3>Verification Status</h3>
-          <span class="status-badge idle" id="overall-status">Idle</span>
-        </div>
 
-        <!-- Success Message -->
-        <div class="success-banner hidden" id="success-banner">
-          <div class="success-icon">🎉</div>
-          <div class="success-content">
-            <h4>Email Successfully Verified Cryptographically!</h4>
-            <p>No verification email was sent.</p>
-            <div class="verified-badge">
-              Verified Identity: <strong id="verified-email-text">-</strong>
-            </div>
-          </div>
+      <!-- Error Message -->
+      <div class="error-banner hidden" id="error-banner">
+        <div class="error-icon">❌</div>
+        <div class="error-content">
+          <h4>Verification Failed</h4>
+          <p id="error-message-text">The cryptographic token could not be verified.</p>
         </div>
+      </div>
+    </div>
 
-        <!-- Error Message -->
-        <div class="error-banner hidden" id="error-banner">
-          <div class="error-icon">❌</div>
-          <div class="error-content">
-            <h4>Verification Failed</h4>
-            <p id="error-message-text">The cryptographic token could not be verified.</p>
-          </div>
-        </div>
+    <!-- Verifier Log / Terminal -->
+    <div class="card console-card">
+      <div class="card-header">
+        <h3>Verifier Log / Protocol Checks</h3>
+        <span class="status-badge idle" id="overall-status">Idle</span>
+      </div>
+      <div class="console-log" id="console-log-terminal">
+        <div class="console-line system">Ready. Select your email from the autofill dropdown to begin.</div>
+      </div>
+    </div>
 
-        <!-- Verifier Log Terminal -->
-        <div class="console-container">
-          <h4>Verifier Log / Protocol Checks</h4>
-          <div class="console-log" id="console-log-terminal">
-            <div class="console-line system">Ready. Waiting for verification token...</div>
-          </div>
-        </div>
-
-        <!-- Step-by-Step Trace -->
-        <div class="trace-steps-container">
-          <h4>EVP Cryptographic Verification Trace</h4>
-          <p class="trace-subtitle">Review the server-to-server operations, inputs, and outputs executed during verification:</p>
-          
-          <div class="trace-steps" id="trace-steps-list">
-            <div class="trace-placeholder">
-              Submit the form to view the cryptographic trace.
-            </div>
+    <!-- Cryptographic Trace steps -->
+    <div class="card trace-card">
+      <div class="card-header">
+        <h3>EVP Cryptographic Verification Trace</h3>
+      </div>
+      <div class="trace-steps-container">
+        <p class="trace-subtitle">Review the exact server-to-server operations and data traces executed during verification:</p>
+        <div class="trace-steps" id="trace-steps-list">
+          <div class="trace-placeholder">
+            Submit the form to view the cryptographic trace steps.
           </div>
         </div>
       </div>
@@ -124,6 +117,6 @@
     </div>
   </footer>
 
-  <script type="module" src="app.js?v=2"></script>
+  <script type="module" src="app.js?v=3"></script>
 </body>
 </html>
