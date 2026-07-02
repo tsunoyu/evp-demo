@@ -26,7 +26,26 @@ let currentChallenge = null;
 document.addEventListener('DOMContentLoaded', () => {
   initChallenge();
   setupFormSubmit();
+  setupThemeToggle();
 });
+
+// Theme Toggle (Dark / Light Mode)
+function setupThemeToggle() {
+  const themeToggleBtn = document.getElementById('theme-toggle');
+  if (!themeToggleBtn) return;
+  
+  // Load saved theme preference
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-theme');
+  }
+  
+  themeToggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('light-theme');
+    const isLight = document.body.classList.contains('light-theme');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  });
+}
 
 // Step 0: Generate a cryptographically secure session challenge (nonce) locally
 function initChallenge() {

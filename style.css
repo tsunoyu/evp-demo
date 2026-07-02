@@ -1,8 +1,12 @@
 /* General Variables & Reset */
 :root {
+  /* Dark Theme (Default) */
   --bg-color: #0b0f19;
+  --header-bg: rgba(11, 15, 25, 0.8);
   --card-bg: rgba(22, 28, 45, 0.6);
   --card-border: rgba(255, 255, 255, 0.08);
+  --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  
   --text-primary: #f3f4f6;
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
@@ -21,13 +25,45 @@
   --error-border: rgba(239, 68, 68, 0.2);
   
   --code-bg: #05070f;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --console-text: #e5e7eb;
+  
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   
-  --radius-lg: 16px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
-  --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 10px;
+  
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Light Theme overrides */
+body.light-theme {
+  --bg-color: #f9fafb;
+  --header-bg: rgba(255, 255, 255, 0.8);
+  --card-bg: #ffffff;
+  --card-border: rgba(0, 0, 0, 0.08);
+  --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  
+  --primary-color: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-glow: rgba(37, 99, 235, 0.1);
+  
+  --success-color: #059669;
+  --success-bg: rgba(5, 150, 105, 0.08);
+  --success-border: rgba(5, 150, 105, 0.15);
+  --success-glow: rgba(5, 150, 105, 0.1);
+  
+  --error-color: #dc2626;
+  --error-bg: rgba(220, 38, 38, 0.08);
+  --error-border: rgba(220, 38, 38, 0.15);
+  
+  --code-bg: #f3f4f6;
+  --console-text: #1f2937;
 }
 
 * {
@@ -45,19 +81,7 @@ body {
   flex-direction: column;
   overflow-x: hidden;
   position: relative;
-}
-
-/* Background Glow Effect */
-.glow-bg {
-  position: absolute;
-  top: -200px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 800px;
-  height: 800px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, rgba(16, 185, 129, 0.02) 50%, rgba(11, 15, 25, 0) 70%);
-  pointer-events: none;
-  z-index: -1;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Header Styles */
@@ -67,7 +91,8 @@ header {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgba(11, 15, 25, 0.8);
+  background: var(--header-bg);
+  transition: var(--transition-smooth);
 }
 
 .header-container {
@@ -92,20 +117,45 @@ header {
 .logo h1 {
   font-size: 1.25rem;
   font-weight: 700;
-  letter-spacing: -0.025em;
-  background: linear-gradient(to right, #fff, var(--text-secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
 }
 
-.badge {
-  background: rgba(255, 255, 255, 0.05);
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  background: rgba(0, 0, 0, 0.05);
   border: 1px solid var(--card-border);
-  padding: 0.35rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-smooth);
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.05);
+}
+
+body.light-theme .theme-toggle-btn {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.theme-toggle-btn .sun-icon {
+  display: block;
+}
+.theme-toggle-btn .moon-icon {
+  display: none;
+}
+
+body.light-theme .theme-toggle-btn .sun-icon {
+  display: none;
+}
+body.light-theme .theme-toggle-btn .moon-icon {
+  display: block;
 }
 
 /* Container Layout (Vertical Stack) */
@@ -117,7 +167,7 @@ header {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.5rem;
 }
 
 /* Card Styles */
@@ -126,14 +176,10 @@ header {
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
   backdrop-filter: blur(16px);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  box-shadow: var(--card-shadow);
   overflow: hidden;
   transition: var(--transition-smooth);
   width: 100%;
-}
-
-.card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .card-header {
@@ -142,7 +188,7 @@ header {
   align-items: center;
   border-bottom: 1px solid var(--card-border);
   padding: 1.25rem 1.5rem;
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .card-header h3 {
@@ -158,14 +204,14 @@ header {
 }
 
 .form-container {
-  padding: 2rem;
+  padding: 2.5rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
 }
 
 .form-container h2 {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: -0.025em;
   text-align: center;
@@ -173,8 +219,8 @@ header {
 
 .form-description {
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.925rem;
+  line-height: 1.6;
   text-align: center;
   margin-bottom: 0.5rem;
 }
@@ -183,34 +229,38 @@ header {
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.6rem;
   margin-bottom: 1.25rem;
 }
 
 .form-group label {
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 input[type="email"] {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.04);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-md);
-  padding: 0.85rem 1rem;
+  padding: 1rem 1.25rem;
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 1rem;
   transition: var(--transition-smooth);
   width: 100%;
+}
+
+body.light-theme input[type="email"] {
+  background: #f3f4f6;
 }
 
 input[type="email"]:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px var(--primary-glow);
+  box-shadow: 0 0 0 4px var(--primary-glow);
 }
 
 /* Buttons */
@@ -219,9 +269,9 @@ input[type="email"]:focus {
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  padding: 0.9rem 1.5rem;
-  font-size: 0.95rem;
-  font-weight: 600;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 700;
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: var(--transition-smooth);
@@ -232,12 +282,12 @@ input[type="email"]:focus {
 .btn-primary {
   background: var(--primary-color);
   color: white;
-  box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.35);
+  box-shadow: 0 4px 14px 0 var(--primary-glow);
 }
 
 .btn-primary:hover {
   background: var(--primary-hover);
-  box-shadow: 0 6px 20px 0 rgba(59, 130, 246, 0.45);
+  transform: translateY(-1px);
 }
 
 /* Spinner */
@@ -296,11 +346,15 @@ input[type="email"]:focus {
 
 .verified-badge {
   display: inline-block;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 0.35rem 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.4rem 0.8rem;
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
   border: 1px solid var(--card-border);
+}
+
+body.light-theme .verified-badge {
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .error-banner {
@@ -347,11 +401,12 @@ input[type="email"]:focus {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+  color: var(--console-text);
+  transition: var(--transition-smooth);
 }
 
 .console-line {
-  color: #d1d5db;
   word-break: break-all;
   white-space: pre-wrap;
 }
@@ -363,7 +418,10 @@ input[type="email"]:focus {
 }
 
 .console-line.system {
-  color: #60a5fa;
+  color: #3b82f6;
+}
+body.light-theme .console-line.system {
+  color: #1d4ed8;
 }
 
 .console-line.success {
@@ -375,18 +433,21 @@ input[type="email"]:focus {
 }
 
 .console-line.highlight {
-  color: #fbbf24;
+  color: #d97706;
+}
+body.light-theme .console-line.highlight {
+  color: #b45309;
 }
 
 /* Trace Step Box */
 .trace-steps-container {
-  padding: 1.5rem;
+  padding: 2rem 1.5rem;
 }
 
 .trace-subtitle {
   color: var(--text-secondary);
-  font-size: 0.85rem;
-  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
 }
 
 .trace-placeholder {
@@ -400,7 +461,7 @@ input[type="email"]:focus {
 
 .trace-step {
   border: 1px solid var(--card-border);
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.02);
   border-radius: var(--radius-md);
   margin-bottom: 1rem;
   overflow: hidden;
@@ -425,7 +486,7 @@ input[type="email"]:focus {
 }
 
 .trace-step-header:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .trace-step-title {
@@ -437,14 +498,14 @@ input[type="email"]:focus {
 .step-num {
   font-size: 0.8rem;
   font-weight: 700;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-secondary);
   width: 24px;
   height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: var(--text-secondary);
 }
 
 .step-name {
@@ -473,7 +534,7 @@ input[type="email"]:focus {
 .trace-step-body {
   padding: 1.25rem;
   border-top: 1px solid var(--card-border);
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.04);
   display: none;
 }
 
@@ -483,8 +544,8 @@ input[type="email"]:focus {
 
 .step-desc {
   color: var(--text-secondary);
-  font-size: 0.85rem;
-  line-height: 1.5;
+  font-size: 0.875rem;
+  line-height: 1.6;
   margin-bottom: 1rem;
 }
 
@@ -494,7 +555,7 @@ input[type="email"]:focus {
 }
 
 .toggle-json-btn {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.03);
   border: 1px solid var(--card-border);
   color: var(--text-secondary);
   padding: 0.45rem 0.85rem;
@@ -510,22 +571,26 @@ input[type="email"]:focus {
 }
 
 .toggle-json-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.06);
   color: var(--text-primary);
 }
 
 .json-data {
-  background-color: #02040a;
+  background-color: var(--code-bg);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm);
   padding: 1rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   overflow-x: auto;
-  color: #a78bfa;
+  color: #8b5cf6;
   line-height: 1.5;
   max-height: 350px;
   width: 100%;
+}
+
+body.light-theme .json-data {
+  color: #6d28d9;
 }
 
 .json-label {
@@ -556,6 +621,10 @@ input[type="email"]:focus {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-muted);
   border: 1px solid var(--card-border);
+}
+
+body.light-theme .status-badge.idle {
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .status-badge.verifying {
