@@ -12,6 +12,14 @@ const WELL_KNOWN_ISSUERS = {
   }
 };
 
+// Helper to normalize issuer strings (strips protocol and trailing slashes for robust comparison)
+function normalizeIssuer(iss) {
+  if (!iss) return '';
+  return iss
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
+}
 
 let currentChallenge = null;
 
@@ -322,7 +330,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
           const recordStr = ans.data.replace(/"/g, '').trim();
           if (recordStr.startsWith('iss=')) {
             const delegatedIssuer = recordStr.substring(4).trim();
-            if (delegatedIssuer === tokenIssuer) {
+            if (normalizeIssuer(delegatedIssuer) === normalizeIssuer(tokenIssuer)) {
               foundDelegation = true;
               break;
             }
