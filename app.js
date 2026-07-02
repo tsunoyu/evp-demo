@@ -27,7 +27,29 @@ document.addEventListener('DOMContentLoaded', () => {
   initChallenge();
   setupFormSubmit();
   setupThemeToggle();
+  setupTabs();
 });
+
+// Tab Navigation for Protocol Inspector
+function setupTabs() {
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+  
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.getAttribute('data-tab');
+      
+      tabButtons.forEach(b => b.classList.remove('active'));
+      tabContents.forEach(c => c.classList.remove('active'));
+      
+      btn.classList.add('active');
+      const targetContent = document.getElementById(`tab-${targetTab}`);
+      if (targetContent) {
+        targetContent.classList.add('active');
+      }
+    });
+  });
+}
 
 // Theme Toggle (Dark / Light Mode)
 function setupThemeToggle() {
@@ -776,7 +798,7 @@ function renderFallbackTrace(email) {
 function escapeHtml(string) {
   return String(string)
     .replace(/&/g, '&amp;')
-    .replace(/..//g, '&lt;')
+    .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');

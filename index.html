@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
   <header>
@@ -23,89 +23,99 @@
     </div>
   </header>
 
-  <main class="container">
-    <!-- Centered Sign Up Card -->
-    <div class="card form-card centered-card">
-      <div class="form-container">
-        <h2>Create Your Account</h2>
-        <p class="form-description">
-          Select your email from the autofill dropdown to verify it instantly.
-        </p>
-        
-        <form id="login-form">
-          <div class="form-group">
-            <label for="email">Email Address</label>
+  <main class="dashboard">
+    <!-- Left Column: User Flow -->
+    <div class="panel-left">
+      <div class="card form-card">
+        <div class="form-container">
+          <h2>Create Your Account</h2>
+          <p class="form-description">
+            Select your email from the autofill dropdown to verify it instantly.
+          </p>
+          
+          <form id="login-form">
+            <div class="form-group">
+              <label for="email">Email Address</label>
+              <input 
+                type="email" 
+                name="email" 
+                id="email" 
+                autocomplete="username" 
+                placeholder="you@gmail.com" 
+                required
+              >
+            </div>
+            
+            <!-- Hidden input for the EVP token -->
             <input 
-              type="email" 
-              name="email" 
-              id="email" 
-              autocomplete="username" 
-              placeholder="you@gmail.com" 
-              required
+              type="hidden" 
+              name="evt" 
+              id="evt" 
+              autocomplete="email-verification-token"
             >
-          </div>
-          
-          <!-- Hidden input for the EVP token as per Phase 2 of the guide -->
-          <input 
-            type="hidden" 
-            name="evt" 
-            id="evt" 
-            autocomplete="email-verification-token"
-          >
-          
-          <button type="submit" class="btn btn-primary" id="submit-btn">
-            <span>Sign Up with EVP</span>
-            <div class="spinner" id="submit-spinner"></div>
-          </button>
-        </form>
-      </div>
-    </div>
-
-    <!-- Success / Failure Banners (Centered) -->
-    <div class="status-container centered-card">
-      <!-- Success Message -->
-      <div class="success-banner hidden" id="success-banner">
-        <div class="success-icon">🎉</div>
-        <div class="success-content">
-          <h4>Email Verified!</h4>
-          <p>Verified cryptographically. No verification email was sent.</p>
-          <div class="verified-badge">
-            Identity: <strong id="verified-email-text">-</strong>
-          </div>
+            
+            <button type="submit" class="btn btn-primary" id="submit-btn">
+              <span>Sign Up with EVP</span>
+              <div class="spinner" id="submit-spinner"></div>
+            </button>
+          </form>
         </div>
       </div>
 
-      <!-- Error Message -->
-      <div class="error-banner hidden" id="error-banner">
-        <div class="error-icon">❌</div>
-        <div class="error-content">
-          <h4>Verification Failed</h4>
-          <p id="error-message-text">The cryptographic token could not be verified.</p>
+      <!-- Status Banners -->
+      <div class="status-container">
+        <!-- Success Message -->
+        <div class="status-banner success hidden" id="success-banner">
+          <div class="status-icon">🎉</div>
+          <div class="status-content">
+            <h4>Email Verified!</h4>
+            <p>Verified cryptographically. No verification email was sent.</p>
+            <div class="verified-badge">
+              Identity: <strong id="verified-email-text">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Message -->
+        <div class="status-banner error hidden" id="error-banner">
+          <div class="status-icon">❌</div>
+          <div class="status-content">
+            <h4>Verification Failed</h4>
+            <p id="error-message-text">The cryptographic token could not be verified.</p>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Verifier Log / Terminal -->
-    <div class="card console-card">
-      <div class="card-header">
-        <h3>Verifier Log / Protocol Checks</h3>
-        <span class="status-badge idle" id="overall-status">Idle</span>
-      </div>
-      <div class="console-log" id="console-log-terminal">
-        <div class="console-line system">Ready. Select your email from the autofill dropdown to begin.</div>
-      </div>
-    </div>
+    <!-- Right Column: Protocol Inspector (Tabbed) -->
+    <div class="panel-right">
+      <div class="card inspector-card">
+        <div class="card-header">
+          <div class="header-title-group">
+            <h3>Protocol Inspector</h3>
+            <span class="status-badge idle" id="overall-status">Idle</span>
+          </div>
+          <div class="tab-navigation">
+            <button class="tab-btn active" data-tab="trace">Verification Trace</button>
+            <button class="tab-btn" data-tab="logs">Console Logs</button>
+          </div>
+        </div>
 
-    <!-- Cryptographic Trace steps -->
-    <div class="card trace-card">
-      <div class="card-header">
-        <h3>Cryptographic Verification Trace</h3>
-      </div>
-      <div class="trace-steps-container">
-        <p class="trace-subtitle">Review the exact server-to-server operations and data traces executed during verification:</p>
-        <div class="trace-steps" id="trace-steps-list">
-          <div class="trace-placeholder">
-            Submit the form to view the cryptographic trace steps.
+        <!-- Tab 1: Verification Trace -->
+        <div class="tab-content active" id="tab-trace">
+          <div class="trace-steps-container">
+            <div class="trace-steps" id="trace-steps-list">
+              <div class="trace-placeholder">
+                Submit the form to view the cryptographic trace steps.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Console Logs -->
+        <div class="tab-content" id="tab-logs">
+          <div class="console-log" id="console-log-terminal">
+            <div class="console-line system">Ready. Select your email from the autofill dropdown to begin.</div>
           </div>
         </div>
       </div>
@@ -113,11 +123,10 @@
   </main>
 
   <footer>
-    <div class="footer-container">
-      <p>EVP Relying Party Demo &bull; Built with vanilla HTML/CSS/JS</p>
-    </div>
+    <p>EVP Relying Party Demo &bull; Built with vanilla HTML/CSS/JS</p>
   </footer>
 
-  <script type="module" src="app.js?v=4"></script>
+  <script type="module" src="app.js?v=5"></script>
 </body>
 </html>
+
