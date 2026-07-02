@@ -25,9 +25,7 @@ let currentChallenge = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   initChallenge();
-  setupTabs();
   setupFormSubmit();
-  setupManualVerify();
 });
 
 // Step 0: Generate a cryptographically secure session challenge (nonce) locally
@@ -48,20 +46,6 @@ function initChallenge() {
   }
 }
 
-// Tab navigation logic
-function setupTabs() {
-  const tabs = document.querySelectorAll('.tab-btn');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      
-      tab.classList.add('active');
-      const targetContent = document.getElementById(tab.dataset.tab);
-      targetContent.classList.add('active');
-    });
-  });
-}
 
 // Form submission (Real / Simulated EVP Flow)
 function setupFormSubmit() {
@@ -108,42 +92,6 @@ function setupFormSubmit() {
   });
 }
 
-// Manual Token verification submit
-function setupManualVerify() {
-  const verifyBtn = document.getElementById('manual-verify-btn');
-  const emailInput = document.getElementById('manual-email');
-  const tokenInput = document.getElementById('manual-token');
-  const spinner = document.getElementById('manual-spinner');
-
-  verifyBtn.addEventListener('click', async () => {
-    const email = emailInput.value.trim();
-    const evtToken = tokenInput.value.trim();
-
-    if (!email || !evtToken) {
-      alert('Please enter both the email address and the raw EVP token.');
-      return;
-    }
-
-    resetResults();
-    setOverallStatus('verifying', 'Verifying...');
-    spinner.style.display = 'inline-block';
-    verifyBtn.disabled = true;
-
-    const result = await verifyEVPToken(evtToken, email);
-    
-    spinner.style.display = 'none';
-    verifyBtn.disabled = false;
-
-    if (result.success) {
-      setOverallStatus('verified', 'Verified');
-      showSuccess(result.email);
-    } else {
-      setOverallStatus('failed', 'Failed');
-      showError(result.error || 'Verification failed.');
-    }
-    renderTrace(result.trace);
-  });
-}
 
 /* UI Helper Functions */
 
