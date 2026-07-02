@@ -6,6 +6,15 @@ Because this implementation is 100% client-side (serverless), it is fully compat
 
 ---
 
+## Implementation Blueprints & Guides
+
+To help you implement the Relying Party in your own environment, we provide two comprehensive guides with full source code:
+
+1. **[Client-Side (SPA) Blueprint](file:///Users/tsunoyu/mac_local_dev/evp-demo/EVP_IMPLEMENTATION_GUIDE.md)**: A fully client-side, serverless implementation that performs cryptographic verification in the browser using the `jose` library via CDN. Great for static hosting (like GitHub Pages).
+2. **[Server-Side (Node.js/Express) Blueprint](file:///Users/tsunoyu/mac_local_dev/evp-demo/EVP_SERVER_IMPLEMENTATION_GUIDE.md)**: A secure, production-ready server-side implementation using Node.js, Express, and TypeScript. Cryptographic verification is handled entirely on the server using Node's native `crypto` and `dns` modules.
+
+---
+
 ## How It Works (Client-Side Cryptographic Verification)
 Normally, cryptographic verification of the EVP token happens on the server side to prevent client-side bypasses. However, for the purpose of a public demo and hosting on static environments like GitHub Pages, this project implements the entire **6-step verification pipeline** directly in the browser:
 

@@ -56,7 +56,6 @@ function setupThemeToggle() {
   const themeToggleBtn = document.getElementById('theme-toggle');
   if (!themeToggleBtn) return;
   
-  // Load saved theme preference
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme === 'light') {
     document.body.classList.add('light-theme');
@@ -87,7 +86,6 @@ function initChallenge() {
   }
 }
 
-
 // Form submission (Real / Simulated EVP Flow)
 function setupFormSubmit() {
   const form = document.getElementById('login-form');
@@ -104,7 +102,7 @@ function setupFormSubmit() {
 
     resetResults();
 
-    // Phase 2: If the hidden token field was not populated, fallback to legacy OTP
+    // If the hidden token field was not populated, fallback to legacy OTP
     if (!evtToken) {
       console.log('No EVP token found. Falling back to legacy OTP...');
       setOverallStatus('failed', 'No EVP Token (Fallback Triggered)');
@@ -133,9 +131,7 @@ function setupFormSubmit() {
   });
 }
 
-
 /* UI Helper Functions */
-
 function consoleLog(message, type = '') {
   const consoleEl = document.getElementById('console-log-terminal');
   if (!consoleEl) return;
@@ -151,11 +147,9 @@ function consoleLog(message, type = '') {
   lineEl.appendChild(document.createTextNode(' ' + message));
   consoleEl.appendChild(lineEl);
   
-  // Auto-scroll to bottom
   consoleEl.scrollTop = consoleEl.scrollHeight;
 }
 
-// Helper to base64url decode without verification
 function decodeJwtPart(part) {
   try {
     const binary = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
@@ -165,7 +159,6 @@ function decodeJwtPart(part) {
   }
 }
 
-// Helper to calculate base64url SHA-256 hash in the browser
 async function sha256Base64Url(str) {
   const encoder = new TextEncoder();
   const data = encoder.encode(str);
@@ -182,7 +175,6 @@ async function sha256Base64Url(str) {
 }
 
 /* Core Client-Side Verification Engine */
-
 async function verifyEVPToken(clientEvtString, submittedEmail) {
   const trace = [];
   const expectedAudience = window.location.origin;
@@ -795,11 +787,12 @@ function renderFallbackTrace(email) {
   `;
 }
 
+// Simple HTML escaping helper
 function escapeHtml(string) {
   return String(string)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/'/g, '&#39;');
 }
