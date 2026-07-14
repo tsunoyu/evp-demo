@@ -106,7 +106,7 @@ function setupFormSubmit() {
     if (!evtToken) {
       console.log('No EVP token found. Falling back to legacy OTP...');
       setOverallStatus('failed', 'No EVP Token (Fallback Triggered)');
-      showError('No EVP token was populated by the browser. The site will now fallback to sending a traditional 6-digit verification code to ' + email + '.');
+      showError('No EVP token was populated by the browser. For this demo, the site will now fallback to sending a traditional 6-digit verification code or Magic Link to ' + email + '.');
       renderFallbackTrace(email);
       return;
     }
@@ -124,8 +124,8 @@ function setupFormSubmit() {
       setOverallStatus('verified', 'Verified');
       showSuccess(result.email);
     } else {
-      setOverallStatus('failed', 'Failed');
-      showError(result.error || 'Verification failed.');
+      setOverallStatus('failed', 'Failed (Fallback Triggered)');
+      showError((result.error || 'Verification failed.') + ' For this demo, the site will now fallback to sending a traditional 6-digit verification code or Magic Link to ' + email + '.');
     }
     renderTrace(result.trace);
   });
