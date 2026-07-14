@@ -175,7 +175,6 @@ function triggerFallbackOtpFlow(email) {
 
   if (fallbackCard) {
     fallbackCard.classList.remove('hidden');
-    fallbackCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 }
 
@@ -835,7 +834,6 @@ function showSuccess(email, isFallback = false) {
   }
   
   banner.classList.remove('hidden');
-  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function showError(message) {
@@ -843,7 +841,6 @@ function showError(message) {
   const messageText = document.getElementById('error-message-text');
   messageText.textContent = message;
   banner.classList.remove('hidden');
-  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function resetResults() {
