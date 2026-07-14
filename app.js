@@ -98,6 +98,7 @@ function setupFormSubmit() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     const email = emailInput.value.trim();
     const evtToken = evtInput.value.trim();
@@ -116,24 +117,31 @@ function setupFormSubmit() {
       return;
     }
 
+    isSubmitting = true;
     setOverallStatus('verifying', 'Verifying...');
     submitSpinner.style.display = 'inline-block';
     submitBtn.disabled = true;
 
-    const result = await verifyEVPToken(evtToken, email);
-    
-    submitSpinner.style.display = 'none';
-    submitBtn.disabled = false;
+    try {
+      const result = await verifyEVPToken(evtToken, email);
+      renderTrace(result.trace);
 
-    renderTrace(result.trace);
-
-    if (result.success) {
-      setOverallStatus('verified', 'Verified');
-      showSuccess(result.email, false);
-    } else {
-      setOverallStatus('failed', 'Verification Failed (Fallback Triggered)');
-      showError(result.error || 'The cryptographic EVP token could not be verified. You can complete verification using the Fallback OTP below.');
-      triggerFallbackOtpFlow(email);
+      if (result.success) {
+        setOverallStatus('verified', 'Verified');
+        showSuccess(result.email, false);
+      } else {
+        setOverallStatus('failed', 'Verification Failed (Fallback Triggered)');
+        showError(result.error || 'The cryptographic EVP token could not be verified. You can complete verification using the Fallback OTP below.');
+        triggerFallbackOtpFlow(email);
+      }
+    } catch (err) {
+      console.error('Unexpected verifier error:', err);
+      setOverallStatus('failed', 'Error');
+      showError('Verifier Execution Error: ' + err.message);
+    } finally {
+      submitSpinner.style.display = 'none';
+      submitBtn.disabled = false;
+      isSubmitting = false;
     }
   });
 }
