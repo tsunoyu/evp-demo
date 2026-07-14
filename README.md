@@ -1,8 +1,26 @@
 # Email Verification Protocol (EVP) - Relying Party (RP) Demo
 
-This repository contains a simple, premium, and fully client-side implementation of a **Relying Party (RP)** website that verifies user email addresses using the new **Email Verification Protocol (EVP)**. 
+This repository contains a simple, premium, and fully client-side implementation of a **Relying Party (RP)** website that demonstrates both **Email Verification Protocol (EVP)** and **Traditional Authentication Flows (OTP Passcode & Magic Link)** with interactive context-switch and friction benchmark tools. 
 
 Because this implementation is 100% client-side (serverless), it is fully compatible with and ready to be deployed directly to **GitHub Pages**.
+
+---
+
+## Interactive Demo Flow Overview
+
+1. **⚡ [EVP Protocol Page](file:///Users/tsunoyu/mac_local_dev/evp-demo/index.html)** (`index.html`):
+   - Demonstrates 1-click, instant in-browser cryptographic verification via Chrome autofill.
+   - Zero context switches, zero SMTP infrastructure, sub-second latency (~0.2s).
+   
+2. **✉️ [Traditional Auth Page](file:///Users/tsunoyu/mac_local_dev/evp-demo/traditional.html)** (`traditional.html`):
+   - Interactive simulation of legacy **6-Digit OTP** and **Magic Link** authentication.
+   - Features a **Live Friction & Latency Stopwatch**, **App Context Switch Counter (2 switches)**, and **Drop-off Probability Calculator**.
+   - Built-in **Simulated Email Inbox Widget** allowing users to test manual code copying or magic link activation.
+   - **Friction & Security Inspector**: Live trace of form dispatch, SMTP delivery queue delays, MTA relays, and vulnerability audit (Phishing AitM relay attacks, scanner pre-fetching token detonation, SMTP relay costs).
+
+3. **📊 Side-by-Side Benchmark Modal**:
+   - Accessible from the header navigation (`Compare Flows`) on any page.
+   - Highlighting side-by-side metric tables (Latency, Friction, Phishing Vulnerability, Deliverability, Server Costs).
 
 ---
 
@@ -21,7 +39,7 @@ Normally, cryptographic verification of the EVP token happens on the server side
 1. **Token Decomposition & Parsing**: Splits the token at the `~` character into the Identity Provider's token (`SD-JWT`) and the browser's binding token (`KB-JWT`), and decodes their payloads.
 2. **Local Claims & Session Binding**: Verifies matching email, verification status, audience, and matches the SHA-256 hash of the `SD-JWT` against the `sd_hash` in the `KB-JWT`.
 3. **DNS Delegation Authority Verification**: Uses **DNS-over-HTTPS (DoH)** via `https://dns.google/resolve` to query DNS TXT records (`_email-verification.<email-domain>`) and check if the email domain delegates authority to the token issuer.
-4. **Issuer Discovery & JWKS Fetching**: Discovers the issuer's endpoints and retrieves public keys (`JWKS`). A built-in dictionary handles CORS restrictions for known issuers (like Google and Rowan's demo).
+4. **Issuer Discovery & JWKS Fetching**: Discovers the issuer's endpoints and retrieves public keys (`JWKS`). A built-in dictionary handles CORS restrictions for known issuers (like Google).
 5. **Issuer Signature Verification**: Cryptographically verifies the `SD-JWT` signature using the issuer's public keys via the `jose` library.
 6. **Ephemeral Key Binding Verification**: Imports the ephemeral public key from the `SD-JWT` and verifies the signature of the browser's `KB-JWT` to prove possession of the private key.
 

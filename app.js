@@ -1,4 +1,5 @@
 import * as jose from 'https://cdn.jsdelivr.net/npm/jose@5.6.3/+esm';
+import { setupComparisonModal } from './modal.js';
 
 // Well-known issuers dictionary to bypass CORS issues on /.well-known endpoints
 const WELL_KNOWN_ISSUERS = {
@@ -28,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupFormSubmit();
   setupThemeToggle();
   setupTabs();
+  setupComparisonModal();
 });
 
 // Tab Navigation for Protocol Inspector

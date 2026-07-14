@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traditional Auth Flow (OTP & Magic Link) - EVP Verifier</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="logo">
+        <span class="logo-icon">🔒</span>
+        <h1>EVP Verifier</h1>
+      </a>
+      <div class="header-right">
+        <nav class="nav-links">
+          <a href="index.html" class="nav-link">
+            <span>⚡</span> EVP Flow
+          </a>
+          <a href="traditional.html" class="nav-link active">
+            <span>✉️</span> Traditional Auth
+          </a>
+          <button id="compare-modal-btn" class="nav-btn-compare">
+            <span>📊</span> Compare Flows
+          </button>
+        </nav>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">
+          <span class="sun-icon">☀️</span>
+          <span class="moon-icon">🌙</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <!-- Left Column: Traditional Flow Simulation -->
+    <div class="panel-left">
+      <div class="card form-card">
+        <div class="form-container">
+          <h2>Traditional Authentication</h2>
+          <p class="form-description">
+            Experience the friction, context switches, delivery latency, and drop-off risks of traditional OTP and Magic Link email flows.
+          </p>
+
+          <!-- Auth Mode Toggle -->
+          <div class="auth-mode-selector">
+            <button type="button" class="mode-pill active" id="mode-otp-btn" data-mode="otp">
+              <span>🔢 6-Digit OTP</span>
+            </button>
+            <button type="button" class="mode-pill" id="mode-link-btn" data-mode="magic-link">
+              <span>🔗 Magic Link</span>
+            </button>
+          </div>
+
+          <!-- Step 1: Send Request Form -->
+          <form id="trad-email-form">
+            <div class="form-group">
+              <label for="trad-email">Email Address</label>
+              <input 
+                type="email" 
+                name="email" 
+                id="trad-email" 
+                placeholder="you@gmail.com" 
+                value="demo.user@gmail.com"
+                required
+              >
+            </div>
+            
+            <button type="submit" class="btn btn-primary" id="trad-send-btn">
+              <span id="send-btn-label">Send OTP Verification Code</span>
+              <div class="spinner" id="trad-send-spinner"></div>
+            </button>
+          </form>
+
+          <!-- Step 2: Verification Input Area (Hidden initially) -->
+          <div id="trad-step2-container" class="hidden" style="margin-top: 1.5rem;">
+            
+            <!-- Live Friction Metrics Banner -->
+            <div class="friction-metrics-grid">
+              <div class="friction-metric-card">
+                <div class="metric-val" id="metric-timer">00:00.0</div>
+                <div class="metric-lbl">Latency Delay</div>
+              </div>
+              <div class="friction-metric-card warning">
+                <div class="metric-val" id="metric-switches">2</div>
+                <div class="metric-lbl">App Switches</div>
+              </div>
+              <div class="friction-metric-card">
+                <div class="metric-val" id="metric-dropoff">~15.2%</div>
+                <div class="metric-lbl">Drop-off Risk</div>
+              </div>
+            </div>
+
+            <!-- Context Switch Instruction Alert -->
+            <div class="context-switch-banner">
+              <span class="banner-icon">🔄</span>
+              <div>
+                <div class="banner-title">Context Switch Required</div>
+                <div class="banner-desc">
+                  You must switch away from this tab to your Email Client, retrieve your code or link, and switch back. Use the <strong>Simulated Mailbox</strong> below to simulate the context switch!
+                </div>
+              </div>
+            </div>
+
+            <!-- OTP Code Verification Form -->
+            <div id="otp-form-section">
+              <div class="form-group otp-input-container">
+                <label style="text-align: center;">Enter 6-Digit Code Sent to Email</label>
+                <div class="otp-digit-grid">
+                  <input type="text" class="otp-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                  <input type="text" class="otp-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                  <input type="text" class="otp-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                  <input type="text" class="otp-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                  <input type="text" class="otp-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                  <input type="text" class="otp-digit-input" maxlength="1" pattern="[0-9]" inputmode="numeric">
+                </div>
+              </div>
+
+              <button type="button" class="btn btn-primary" id="trad-verify-otp-btn">
+                <span>Submit & Verify OTP</span>
+                <div class="spinner" id="trad-verify-spinner"></div>
+              </button>
+            </div>
+
+            <!-- Magic Link Waiting Section -->
+            <div id="magic-link-section" class="hidden">
+              <div style="text-align: center; padding: 1.5rem; border: 1px dashed var(--card-border); border-radius: var(--radius-md); background: rgba(0,0,0,0.1);">
+                <div class="spinner" style="display: inline-block; width: 2rem; height: 2rem; margin-bottom: 0.75rem;"></div>
+                <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.3rem;">Awaiting Magic Link Click</h4>
+                <p style="font-size: 0.78rem; color: var(--text-secondary);">
+                  Open the email in the simulated inbox below and click the Magic Link to authorize sign-in.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status Banners -->
+      <div class="status-container">
+        <!-- Success Message -->
+        <div class="status-banner success hidden" id="trad-success-banner">
+          <div class="status-icon">🎉</div>
+          <div class="status-content">
+            <h4>Authentication Successful</h4>
+            <p id="trad-success-detail">Verified via traditional email flow after delivery delay and context switching.</p>
+            <div class="verified-badge">
+              Time Elapsed: <strong id="trad-final-time">0s</strong> &bull; Context Switches: <strong>2</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Message -->
+        <div class="status-banner error hidden" id="trad-error-banner">
+          <div class="status-icon">❌</div>
+          <div class="status-content">
+            <h4>Authentication Failed</h4>
+            <p id="trad-error-text">The verification code was invalid or expired.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Simulated Email Inbox Widget (Demonstrates Context Switching) -->
+      <div class="simulated-inbox-card">
+        <div class="inbox-header">
+          <div class="inbox-title-group">
+            <span>📫 Simulated Email Inbox</span>
+            <span class="inbox-unread-count" id="inbox-unread-badge">0</span>
+          </div>
+          <span style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-mono);" id="inbox-address-label">
+            mailbox: user@gmail.com
+          </span>
+        </div>
+
+        <div class="simulated-email-body" id="inbox-content-area">
+          <div class="email-empty-state" id="inbox-empty-message">
+            Inbox is currently empty. Submit the form above to trigger email dispatch.
+          </div>
+          <div id="inbox-messages-list"></div>
+        </div>
+
+        <div style="padding: 0.5rem 1rem; border-top: 1px solid var(--card-border); background: rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;">
+          <div class="sim-control-bar" style="margin-top: 0;">
+            <button type="button" class="sim-btn" id="sim-delay-btn">+15s Latency Delay</button>
+            <button type="button" class="sim-btn" id="sim-reset-btn">Reset Mailbox</button>
+          </div>
+          <span style="font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono);">Simulated App Context</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Protocol & Friction Inspector -->
+    <div class="panel-right">
+      <div class="card inspector-card">
+        <div class="card-header">
+          <div class="header-title-group">
+            <h3>Friction Inspector</h3>
+            <span class="status-badge idle" id="trad-status-badge">Idle</span>
+          </div>
+          <div class="tab-navigation">
+            <button class="tab-btn active" data-tab="friction-trace">Friction Trace</button>
+            <button class="tab-btn" data-tab="security-audit">Security & Cost Audit</button>
+          </div>
+        </div>
+
+        <!-- Tab 1: Friction Trace Steps -->
+        <div class="tab-content active" id="tab-friction-trace">
+          <div class="trace-steps-container">
+            <div class="trace-steps" id="trad-trace-steps-list">
+              <div class="trace-placeholder">
+                Send a code or magic link to view the step-by-step friction trace.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Security & Cost Audit -->
+        <div class="tab-content" id="tab-security-audit">
+          <div class="console-log" id="trad-security-terminal">
+            <div class="console-line system">Ready. Select an authentication method (OTP or Magic Link) and send to inspect security and operational overhead.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>EVP Relying Party Demo &bull; Comparing Traditional Authentication Friction vs Email Verification Protocol</p>
+  </footer>
+
+  <script type="module" src="traditional.js?v=1"></script>
+</body>
+</html>
