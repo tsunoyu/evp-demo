@@ -1,5 +1,3 @@
-import { setupComparisonModal } from './modal.js';
-
 let currentMode = 'otp'; // 'otp' or 'magic-link'
 let generatedOtp = '';
 let generatedMagicToken = '';
@@ -14,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupFormSubmit();
   setupOtpDigitInputs();
   setupSimulatedInboxControls();
-  setupComparisonModal();
 });
 
 // Setup Theme Toggle

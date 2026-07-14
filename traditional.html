@@ -8,25 +8,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
 </head>
 <body>
   <header>
     <div class="header-container">
-      <a href="index.html" class="logo">
+      <a href="index.html" class="logo" style="text-decoration: none; color: inherit;">
         <span class="logo-icon">🔒</span>
         <h1>EVP Verifier</h1>
       </a>
-      <div class="header-right">
-        <nav class="nav-links">
-          <a href="index.html" class="nav-link">
+      <div class="header-right" style="display: flex; align-items: center; gap: 1.5rem;">
+        <nav class="nav-links" style="display: flex; gap: 1rem;">
+          <a href="index.html" class="nav-link" style="display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); text-decoration: none; font-weight: 500; font-size: 0.9rem; color: var(--text-secondary);">
             <span>⚡</span> EVP Flow
           </a>
-          <a href="traditional.html" class="nav-link active">
+          <a href="traditional.html" class="nav-link active" style="display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); text-decoration: none; font-weight: 500; font-size: 0.9rem; background: rgba(59,130,246,0.1); color: var(--primary-color);">
             <span>✉️</span> Traditional Auth
           </a>
-          <button id="compare-modal-btn" class="nav-btn-compare">
-            <span>📊</span> Compare Flows
-          </button>
         </nav>
         <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">
           <span class="sun-icon">☀️</span>
