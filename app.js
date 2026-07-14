@@ -104,6 +104,7 @@ function setupFormSubmit() {
     currentSubmittedEmail = email;
 
     resetResults();
+    switchToTraceTab();
 
     // If the hidden token field was not populated, fallback to legacy OTP
     if (!evtToken) {
@@ -124,15 +125,37 @@ function setupFormSubmit() {
     submitSpinner.style.display = 'none';
     submitBtn.disabled = false;
 
+    renderTrace(result.trace);
+
     if (result.success) {
       setOverallStatus('verified', 'Verified');
-      showSuccess(result.email);
+      showSuccess(result.email, false);
     } else {
-      setOverallStatus('failed', 'Failed');
-      showError(result.error || 'Verification failed. Falling back to traditional OTP.');
+      setOverallStatus('failed', 'Verification Failed (Fallback Triggered)');
+      showError(result.error || 'The cryptographic EVP token could not be verified. You can complete verification using the Fallback OTP below.');
       triggerFallbackOtpFlow(email);
     }
-    renderTrace(result.trace);
+  });
+}
+
+function switchToTraceTab() {
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+  
+  tabButtons.forEach(b => {
+    if (b.getAttribute('data-tab') === 'trace') {
+      b.classList.add('active');
+    } else {
+      b.classList.remove('active');
+    }
+  });
+
+  tabContents.forEach(c => {
+    if (c.id === 'tab-trace') {
+      c.classList.add('active');
+    } else {
+      c.classList.remove('active');
+    }
   });
 }
 
@@ -223,18 +246,37 @@ function setupFallbackOtpHandlers() {
         document.getElementById('fallback-otp-card').classList.add('hidden');
         document.getElementById('error-banner').classList.add('hidden');
         setOverallStatus('verified', 'Verified (via Fallback OTP)');
-        showSuccess(currentSubmittedEmail || 'user@gmail.com');
-        
-        // Update success banner text to indicate fallback completion
-        const bannerSub = document.querySelector('#success-banner p');
-        if (bannerSub) {
-          bannerSub.textContent = 'Verified via traditional 6-digit OTP fallback. (Compare: Direct EVP verification achieves 0.2s zero-friction login).';
-        }
+        showSuccess(currentSubmittedEmail || 'user@gmail.com', true);
+        appendFallbackSuccessStep();
       } else {
         alert(`Incorrect fallback code. Entered: ${entered}, Expected: ${activeFallbackOtp}`);
       }
     });
   }
+}
+
+function appendFallbackSuccessStep() {
+  const container = document.getElementById('trace-steps-list');
+  if (!container) return;
+
+  const stepEl = document.createElement('div');
+  stepEl.className = 'trace-step success';
+  stepEl.style.borderLeftColor = 'var(--success-color)';
+
+  stepEl.innerHTML = `
+    <div class="trace-step-header" style="cursor: default;">
+      <div class="trace-step-title">
+        <span class="step-num">⚡</span>
+        <span class="step-name">Fallback OTP Passcode Verified</span>
+      </div>
+      <span class="step-badge success">verified</span>
+    </div>
+    <div class="trace-step-body open" style="display: block; border-top: 1px solid var(--card-border);">
+      <p class="step-desc">The user successfully verified control of <code>${escapeHtml(currentSubmittedEmail)}</code> using the traditional 6-digit fallback passcode. (Compare: Direct EVP verification achieves instant sub-second verification with zero context switches).</p>
+    </div>
+  `;
+
+  container.appendChild(stepEl);
 }
 
 /* UI Helper Functions */
@@ -780,11 +822,20 @@ function setOverallStatus(statusClass, text) {
   badge.textContent = text;
 }
 
-function showSuccess(email) {
+function showSuccess(email, isFallback = false) {
   const banner = document.getElementById('success-banner');
   const emailText = document.getElementById('verified-email-text');
-  emailText.textContent = email;
+  const descText = document.querySelector('#success-banner p');
+  
+  if (emailText) emailText.textContent = email;
+  if (descText) {
+    descText.textContent = isFallback 
+      ? 'Verified via traditional 6-digit OTP fallback. (Compare: Direct EVP verification achieves instant sub-second verification with zero context switches).'
+      : 'Verified cryptographically. No verification email was sent.';
+  }
+  
   banner.classList.remove('hidden');
+  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function showError(message) {
@@ -792,6 +843,7 @@ function showError(message) {
   const messageText = document.getElementById('error-message-text');
   messageText.textContent = message;
   banner.classList.remove('hidden');
+  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function resetResults() {
@@ -821,7 +873,7 @@ function renderTrace(traceSteps) {
     `;
 
     const bodyEl = document.createElement('div');
-    bodyEl.className = 'trace-step-body';
+    bodyEl.className = 'trace-step-body open'; // Auto-open all trace step details for clear visibility
     
     let serverCalledHtml = '';
     if (step.serverCalled) {
