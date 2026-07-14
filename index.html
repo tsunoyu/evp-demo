@@ -107,26 +107,26 @@
             <span class="status-badge idle" id="overall-status">Idle</span>
           </div>
           <div class="tab-navigation">
-            <button class="tab-btn active" data-tab="trace">Verification Trace</button>
-            <button class="tab-btn" data-tab="logs">Console Logs</button>
+            <button class="tab-btn active" data-tab="logs">Console Logs</button>
+            <button class="tab-btn" data-tab="trace">Verification Trace</button>
           </div>
         </div>
 
-        <!-- Tab 1: Verification Trace -->
-        <div class="tab-content active" id="tab-trace">
+        <!-- Tab 1: Console Logs -->
+        <div class="tab-content active" id="tab-logs">
+          <div class="console-log" id="console-log-terminal">
+            <div class="console-line system">Ready. Select your email from the autofill dropdown to begin.</div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Verification Trace -->
+        <div class="tab-content" id="tab-trace">
           <div class="trace-steps-container">
             <div class="trace-steps" id="trace-steps-list">
               <div class="trace-placeholder">
                 Submit the form to view the cryptographic trace steps.
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Tab 2: Console Logs -->
-        <div class="tab-content" id="tab-logs">
-          <div class="console-log" id="console-log-terminal">
-            <div class="console-line system">Ready. Select your email from the autofill dropdown to begin.</div>
           </div>
         </div>
       </div>
