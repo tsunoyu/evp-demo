@@ -1,5 +1,4 @@
 import * as jose from 'https://cdn.jsdelivr.net/npm/jose@5.6.3/+esm';
-import { setupComparisonModal } from './modal.js';
 
 // Well-known issuers dictionary to bypass CORS issues on /.well-known endpoints
 const WELL_KNOWN_ISSUERS = {
@@ -29,10 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupFormSubmit();
   setupThemeToggle();
   setupTabs();
-  setupComparisonModal();
-  setupFallbackOtpHandlers();
-  setupAutofillObserver();
-  setupDemoButton();
 });
 
 // Tab Navigation for Protocol Inspector
@@ -101,257 +96,39 @@ function setupFormSubmit() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (isSubmitting) return;
 
     const email = emailInput.value.trim();
     const evtToken = evtInput.value.trim();
-    currentSubmittedEmail = email;
 
     resetResults();
-    switchToTraceTab();
 
     // If the hidden token field was not populated, fallback to legacy OTP
     if (!evtToken) {
       console.log('No EVP token found. Falling back to legacy OTP...');
       setOverallStatus('failed', 'No EVP Token (Fallback Triggered)');
-      showError('No EVP token was populated by the browser. The site has automatically fallen back to sending a traditional 6-digit verification code to ' + email + '.');
+      showError('No EVP token was populated by the browser. The site will now fallback to sending a traditional 6-digit verification code to ' + email + '.');
       renderFallbackTrace(email);
-      triggerFallbackOtpFlow(email);
       return;
     }
 
-    isSubmitting = true;
     setOverallStatus('verifying', 'Verifying...');
     submitSpinner.style.display = 'inline-block';
     submitBtn.disabled = true;
 
-    try {
-      const result = await verifyEVPToken(evtToken, email);
-      renderTrace(result.trace);
-
-      if (result.success) {
-        setOverallStatus('verified', 'Verified');
-        showSuccess(result.email, false);
-      } else {
-        setOverallStatus('failed', 'Verification Failed (Fallback Triggered)');
-        showError(result.error || 'The cryptographic EVP token could not be verified. You can complete verification using the Fallback OTP below.');
-        triggerFallbackOtpFlow(email);
-      }
-    } catch (err) {
-      console.error('Unexpected verifier error:', err);
-      setOverallStatus('failed', 'Error');
-      showError('Verifier Execution Error: ' + err.message);
-    } finally {
-      submitSpinner.style.display = 'none';
-      submitBtn.disabled = false;
-      isSubmitting = false;
-    }
-  });
-}
-
-function switchToTraceTab() {
-  const tabButtons = document.querySelectorAll('.tab-btn');
-  const tabContents = document.querySelectorAll('.tab-content');
-  
-  tabButtons.forEach(b => {
-    if (b.getAttribute('data-tab') === 'trace') {
-      b.classList.add('active');
-    } else {
-      b.classList.remove('active');
-    }
-  });
-
-  tabContents.forEach(c => {
-    if (c.id === 'tab-trace') {
-      c.classList.add('active');
-    } else {
-      c.classList.remove('active');
-    }
-  });
-
-  const inspectorCard = document.querySelector('.inspector-card');
-  if (inspectorCard) {
-    inspectorCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-}
-
-function setupDemoButton() {
-  const demoBtn = document.getElementById('demo-evp-btn');
-  const emailInput = document.getElementById('email');
-  const evtInput = document.getElementById('evt');
-  const form = document.getElementById('login-form');
-
-  if (!demoBtn || !evtInput || !form) return;
-
-  demoBtn.addEventListener('click', async () => {
-    const demoEmail = emailInput.value.trim() || 'demo.user@gmail.com';
-    emailInput.value = demoEmail;
-
-    // Generate a validly formatted sample EVP token matching current challenge
-    const sampleToken = await generateSampleEvpToken(demoEmail, currentChallenge);
-    evtInput.value = sampleToken;
-
-    consoleLog('[Demo Mode] Triggered Demo EVP Verification with generated sample token matching session challenge: ' + currentChallenge, 'highlight');
+    const result = await verifyEVPToken(evtToken, email);
     
-    if (typeof form.requestSubmit === 'function') {
-      form.requestSubmit();
+    submitSpinner.style.display = 'none';
+    submitBtn.disabled = false;
+
+    if (result.success) {
+      setOverallStatus('verified', 'Verified');
+      showSuccess(result.email);
     } else {
-      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      setOverallStatus('failed', 'Failed');
+      showError(result.error || 'Verification failed.');
     }
+    renderTrace(result.trace);
   });
-}
-
-async function generateSampleEvpToken(email, nonce) {
-  const sdHeader = { alg: "EdDSA", typ: "evt+jwt", kid: "google-vc-key-1" };
-  const sdPayload = {
-    iss: "https://accounts.google.com",
-    iat: Math.floor(Date.now() / 1000),
-    email: email || "demo.user@gmail.com",
-    email_verified: true,
-    cnf: {
-      jwk: {
-        kty: "OKP",
-        crv: "Ed25519",
-        x: "O2bV14Zj0v89g7-FMA5tzA0nySc8_G6L3O89G_x34-c"
-      }
-    }
-  };
-
-  const b64 = (obj) => btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  const sdJwt = `${b64(sdHeader)}.${b64(sdPayload)}.demo_sd_signature_sample`;
-  
-  const evtHash = await sha256Base64Url(sdJwt + '~');
-
-  const kbHeader = { alg: "EdDSA", typ: "kb+jwt" };
-  const kbPayload = {
-    aud: window.location.origin,
-    nonce: nonce || currentChallenge,
-    iat: Math.floor(Date.now() / 1000),
-    sd_hash: evtHash
-  };
-
-  const kbJwt = `${b64(kbHeader)}.${b64(kbPayload)}.demo_kb_signature_sample`;
-
-  return `${sdJwt}~${kbJwt}`;
-}
-
-// Traditional OTP Fallback Logic for index.html
-function triggerFallbackOtpFlow(email) {
-  activeFallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  
-  const fallbackCard = document.getElementById('fallback-otp-card');
-  const mailTarget = document.getElementById('fallback-mail-target');
-  const codeBadge = document.getElementById('fallback-code-badge');
-  const digits = document.querySelectorAll('.fallback-digit');
-
-  if (mailTarget) mailTarget.textContent = email;
-  if (codeBadge) codeBadge.textContent = `Code: ${activeFallbackOtp.substring(0, 3)}-${activeFallbackOtp.substring(3)}`;
-  
-  digits.forEach(d => d.value = '');
-
-  if (fallbackCard) {
-    fallbackCard.classList.remove('hidden');
-  }
-}
-
-function setupFallbackOtpHandlers() {
-  const digits = document.querySelectorAll('.fallback-digit');
-  const autofillBtn = document.getElementById('fallback-autofill-btn');
-  const verifyBtn = document.getElementById('fallback-verify-btn');
-  const spinner = document.getElementById('fallback-spinner');
-
-  digits.forEach((input, index) => {
-    input.addEventListener('input', (e) => {
-      const val = e.target.value;
-      if (val.length >= 1) {
-        input.value = val[0];
-        if (index < digits.length - 1) {
-          digits[index + 1].focus();
-        }
-      }
-    });
-
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && !input.value && index > 0) {
-        digits[index - 1].focus();
-      }
-    });
-
-    input.addEventListener('paste', (e) => {
-      e.preventDefault();
-      const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
-      const pastedDigits = pasteData.replace(/\D/g, '').substring(0, 6);
-      pastedDigits.split('').forEach((d, i) => {
-        if (digits[i]) digits[i].value = d;
-      });
-      if (pastedDigits.length > 0) {
-        const lastIdx = Math.min(pastedDigits.length - 1, digits.length - 1);
-        digits[lastIdx].focus();
-      }
-    });
-  });
-
-  if (autofillBtn) {
-    autofillBtn.addEventListener('click', () => {
-      activeFallbackOtp.split('').forEach((d, i) => {
-        if (digits[i]) digits[i].value = d;
-      });
-    });
-  }
-
-  if (verifyBtn) {
-    verifyBtn.addEventListener('click', async () => {
-      let entered = '';
-      digits.forEach(d => entered += d.value.trim());
-      
-      if (entered.length < 6) {
-        alert('Please enter all 6 digits of the fallback code.');
-        return;
-      }
-
-      if (spinner) spinner.style.display = 'inline-block';
-      verifyBtn.disabled = true;
-
-      await new Promise(r => setTimeout(r, 400));
-
-      if (spinner) spinner.style.display = 'none';
-      verifyBtn.disabled = false;
-
-      if (entered === activeFallbackOtp) {
-        document.getElementById('fallback-otp-card').classList.add('hidden');
-        document.getElementById('error-banner').classList.add('hidden');
-        setOverallStatus('verified', 'Verified (via Fallback OTP)');
-        showSuccess(currentSubmittedEmail || 'user@gmail.com', true);
-        appendFallbackSuccessStep();
-      } else {
-        alert(`Incorrect fallback code. Entered: ${entered}, Expected: ${activeFallbackOtp}`);
-      }
-    });
-  }
-}
-
-function appendFallbackSuccessStep() {
-  const container = document.getElementById('trace-steps-list');
-  if (!container) return;
-
-  const stepEl = document.createElement('div');
-  stepEl.className = 'trace-step success';
-  stepEl.style.borderLeftColor = 'var(--success-color)';
-
-  stepEl.innerHTML = `
-    <div class="trace-step-header" style="cursor: default;">
-      <div class="trace-step-title">
-        <span class="step-num">⚡</span>
-        <span class="step-name">Fallback OTP Passcode Verified</span>
-      </div>
-      <span class="step-badge success">verified</span>
-    </div>
-    <div class="trace-step-body open" style="display: block; border-top: 1px solid var(--card-border);">
-      <p class="step-desc">The user successfully verified control of <code>${escapeHtml(currentSubmittedEmail)}</code> using the traditional 6-digit fallback passcode. (Compare: Direct EVP verification achieves instant sub-second verification with zero context switches).</p>
-    </div>
-  `;
-
-  container.appendChild(stepEl);
 }
 
 /* UI Helper Functions */
@@ -897,18 +674,10 @@ function setOverallStatus(statusClass, text) {
   badge.textContent = text;
 }
 
-function showSuccess(email, isFallback = false) {
+function showSuccess(email) {
   const banner = document.getElementById('success-banner');
   const emailText = document.getElementById('verified-email-text');
-  const descText = document.querySelector('#success-banner p');
-  
-  if (emailText) emailText.textContent = email;
-  if (descText) {
-    descText.textContent = isFallback 
-      ? 'Verified via traditional 6-digit OTP fallback. (Compare: Direct EVP verification achieves instant sub-second verification with zero context switches).'
-      : 'Verified cryptographically. No verification email was sent.';
-  }
-  
+  emailText.textContent = email;
   banner.classList.remove('hidden');
 }
 
@@ -922,8 +691,6 @@ function showError(message) {
 function resetResults() {
   document.getElementById('success-banner').classList.add('hidden');
   document.getElementById('error-banner').classList.add('hidden');
-  const fallbackCard = document.getElementById('fallback-otp-card');
-  if (fallbackCard) fallbackCard.classList.add('hidden');
   document.getElementById('trace-steps-list').innerHTML = '';
 }
 
@@ -946,7 +713,7 @@ function renderTrace(traceSteps) {
     `;
 
     const bodyEl = document.createElement('div');
-    bodyEl.className = 'trace-step-body open'; // Auto-open all trace step details for clear visibility
+    bodyEl.className = 'trace-step-body';
     
     let serverCalledHtml = '';
     if (step.serverCalled) {
