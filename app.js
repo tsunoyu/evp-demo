@@ -30,6 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
   setupThemeToggle();
   setupTabs();
   setupComparisonModal();
+  setupFallbackOtpHandlers();
+  setupAutofillObserver();
+  setupDemoButton();
 });
 
 // Tab Navigation for Protocol Inspector
@@ -165,6 +168,71 @@ function switchToTraceTab() {
       c.classList.remove('active');
     }
   });
+
+  const inspectorCard = document.querySelector('.inspector-card');
+  if (inspectorCard) {
+    inspectorCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function setupDemoButton() {
+  const demoBtn = document.getElementById('demo-evp-btn');
+  const emailInput = document.getElementById('email');
+  const evtInput = document.getElementById('evt');
+  const form = document.getElementById('login-form');
+
+  if (!demoBtn || !evtInput || !form) return;
+
+  demoBtn.addEventListener('click', async () => {
+    const demoEmail = emailInput.value.trim() || 'demo.user@gmail.com';
+    emailInput.value = demoEmail;
+
+    // Generate a validly formatted sample EVP token matching current challenge
+    const sampleToken = await generateSampleEvpToken(demoEmail, currentChallenge);
+    evtInput.value = sampleToken;
+
+    consoleLog('[Demo Mode] Triggered Demo EVP Verification with generated sample token matching session challenge: ' + currentChallenge, 'highlight');
+    
+    if (typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+    } else {
+      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }
+  });
+}
+
+async function generateSampleEvpToken(email, nonce) {
+  const sdHeader = { alg: "EdDSA", typ: "evt+jwt", kid: "google-vc-key-1" };
+  const sdPayload = {
+    iss: "https://accounts.google.com",
+    iat: Math.floor(Date.now() / 1000),
+    email: email || "demo.user@gmail.com",
+    email_verified: true,
+    cnf: {
+      jwk: {
+        kty: "OKP",
+        crv: "Ed25519",
+        x: "O2bV14Zj0v89g7-FMA5tzA0nySc8_G6L3O89G_x34-c"
+      }
+    }
+  };
+
+  const b64 = (obj) => btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const sdJwt = `${b64(sdHeader)}.${b64(sdPayload)}.demo_sd_signature_sample`;
+  
+  const evtHash = await sha256Base64Url(sdJwt + '~');
+
+  const kbHeader = { alg: "EdDSA", typ: "kb+jwt" };
+  const kbPayload = {
+    aud: window.location.origin,
+    nonce: nonce || currentChallenge,
+    iat: Math.floor(Date.now() / 1000),
+    sd_hash: evtHash
+  };
+
+  const kbJwt = `${b64(kbHeader)}.${b64(kbPayload)}.demo_kb_signature_sample`;
+
+  return `${sdJwt}~${kbJwt}`;
 }
 
 // Traditional OTP Fallback Logic for index.html

@@ -67,10 +67,15 @@
               autocomplete="email-verification-token"
             >
             
-            <button type="submit" class="btn btn-primary" id="submit-btn">
-              <span>Verify</span>
-              <div class="spinner" id="submit-spinner"></div>
-            </button>
+            <div style="display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;">
+              <button type="submit" class="btn btn-primary" id="submit-btn" style="flex: 1; min-width: 140px;">
+                <span>Verify EVP Token</span>
+                <div class="spinner" id="submit-spinner"></div>
+              </button>
+              <button type="button" class="btn" id="demo-evp-btn" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.35); flex: 1; min-width: 180px; font-weight: 600;">
+                <span>⚡ Demo EVP Cryptographic Trace</span>
+              </button>
+            </div>
           </form>
         </div>
       </div>
@@ -181,6 +186,6 @@
     <p>EVP Relying Party Demo &bull; Built with vanilla HTML/CSS/JS</p>
   </footer>
 
-  <script type="module" src="app.js?v=50"></script>
+  <script type="module" src="app.js?v=99"></script>
 </body>
 </html>
