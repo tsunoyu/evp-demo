@@ -309,6 +309,7 @@ function deliverSimulatedEmail(email, subject, bodyContent, mode) {
       logTerminal('Context Switch #1 & #2 executed: Deep-link token opened in browser callback endpoint.');
       stopFrictionTimer();
       await sleep(300);
+      document.getElementById('magic-link-section')?.classList.add('hidden');
       completeSuccess('Verified via Magic Link email callback! Notice how a new browser tab/window had to be loaded.');
     });
   }

@@ -98,6 +98,48 @@
           </div>
         </div>
       </div>
+
+      <!-- Interactive Fallback OTP Card (Triggered when EVP fails or is missing) -->
+      <div class="card hidden" id="fallback-otp-card" style="margin-top: 1rem; border-color: rgba(245, 158, 11, 0.4); animation: slideDown 0.2s ease-out;">
+        <div class="form-container" style="padding: 1.25rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.2rem;">🔄</span>
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: #f59e0b;">EVP Fallback: Traditional OTP Verification</h4>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.4;">
+            EVP token was unavailable or unverified. A traditional 6-digit OTP code has been dispatched to your email address as a fallback.
+          </p>
+
+          <!-- OTP Code Digit Grid -->
+          <div class="form-group otp-input-container">
+            <label style="text-align: center; font-size: 0.68rem;">Enter Fallback 6-Digit Code</label>
+            <div class="otp-digit-grid" id="fallback-otp-grid">
+              <input type="text" class="otp-digit-input fallback-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+              <input type="text" class="otp-digit-input fallback-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+              <input type="text" class="otp-digit-input fallback-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+              <input type="text" class="otp-digit-input fallback-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+              <input type="text" class="otp-digit-input fallback-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+              <input type="text" class="otp-digit-input fallback-digit" maxlength="1" pattern="[0-9]" inputmode="numeric">
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-primary" id="fallback-verify-btn" style="background: #f59e0b; color: #000; font-weight: 700;">
+            <span>Submit Fallback OTP Code</span>
+            <div class="spinner" id="fallback-spinner"></div>
+          </button>
+
+          <!-- Simulated Email Box Quick Action -->
+          <div style="margin-top: 1rem; padding: 0.75rem; border: 1px dashed var(--card-border); border-radius: var(--radius-sm); background: rgba(0,0,0,0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.25rem;">
+              <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary);">📬 Simulated Mailbox: <span id="fallback-mail-target">you@gmail.com</span></span>
+              <span class="verified-badge" style="background: rgba(245,158,11,0.2); color: #f59e0b; border-color: rgba(245,158,11,0.4);" id="fallback-code-badge">Code: 849-201</span>
+            </div>
+            <button type="button" class="email-act-btn primary" id="fallback-autofill-btn" style="width: 100%; font-size: 0.75rem; background: rgba(255,255,255,0.08); border-color: var(--card-border); color: var(--text-primary);">
+              📋 Auto-Fill & Paste Fallback OTP Code
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Right Column: Protocol Inspector (Tabbed) -->

@@ -101,6 +101,7 @@ function setupFormSubmit() {
 
     const email = emailInput.value.trim();
     const evtToken = evtInput.value.trim();
+    currentSubmittedEmail = email;
 
     resetResults();
 
@@ -108,8 +109,9 @@ function setupFormSubmit() {
     if (!evtToken) {
       console.log('No EVP token found. Falling back to legacy OTP...');
       setOverallStatus('failed', 'No EVP Token (Fallback Triggered)');
-      showError('No EVP token was populated by the browser. The site will now fallback to sending a traditional 6-digit verification code to ' + email + '.');
+      showError('No EVP token was populated by the browser. The site has automatically fallen back to sending a traditional 6-digit verification code to ' + email + '.');
       renderFallbackTrace(email);
+      triggerFallbackOtpFlow(email);
       return;
     }
 
@@ -127,10 +129,112 @@ function setupFormSubmit() {
       showSuccess(result.email);
     } else {
       setOverallStatus('failed', 'Failed');
-      showError(result.error || 'Verification failed.');
+      showError(result.error || 'Verification failed. Falling back to traditional OTP.');
+      triggerFallbackOtpFlow(email);
     }
     renderTrace(result.trace);
   });
+}
+
+// Traditional OTP Fallback Logic for index.html
+function triggerFallbackOtpFlow(email) {
+  activeFallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  const fallbackCard = document.getElementById('fallback-otp-card');
+  const mailTarget = document.getElementById('fallback-mail-target');
+  const codeBadge = document.getElementById('fallback-code-badge');
+  const digits = document.querySelectorAll('.fallback-digit');
+
+  if (mailTarget) mailTarget.textContent = email;
+  if (codeBadge) codeBadge.textContent = `Code: ${activeFallbackOtp.substring(0, 3)}-${activeFallbackOtp.substring(3)}`;
+  
+  digits.forEach(d => d.value = '');
+
+  if (fallbackCard) {
+    fallbackCard.classList.remove('hidden');
+    fallbackCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function setupFallbackOtpHandlers() {
+  const digits = document.querySelectorAll('.fallback-digit');
+  const autofillBtn = document.getElementById('fallback-autofill-btn');
+  const verifyBtn = document.getElementById('fallback-verify-btn');
+  const spinner = document.getElementById('fallback-spinner');
+
+  digits.forEach((input, index) => {
+    input.addEventListener('input', (e) => {
+      const val = e.target.value;
+      if (val.length >= 1) {
+        input.value = val[0];
+        if (index < digits.length - 1) {
+          digits[index + 1].focus();
+        }
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !input.value && index > 0) {
+        digits[index - 1].focus();
+      }
+    });
+
+    input.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
+      const pastedDigits = pasteData.replace(/\D/g, '').substring(0, 6);
+      pastedDigits.split('').forEach((d, i) => {
+        if (digits[i]) digits[i].value = d;
+      });
+      if (pastedDigits.length > 0) {
+        const lastIdx = Math.min(pastedDigits.length - 1, digits.length - 1);
+        digits[lastIdx].focus();
+      }
+    });
+  });
+
+  if (autofillBtn) {
+    autofillBtn.addEventListener('click', () => {
+      activeFallbackOtp.split('').forEach((d, i) => {
+        if (digits[i]) digits[i].value = d;
+      });
+    });
+  }
+
+  if (verifyBtn) {
+    verifyBtn.addEventListener('click', async () => {
+      let entered = '';
+      digits.forEach(d => entered += d.value.trim());
+      
+      if (entered.length < 6) {
+        alert('Please enter all 6 digits of the fallback code.');
+        return;
+      }
+
+      if (spinner) spinner.style.display = 'inline-block';
+      verifyBtn.disabled = true;
+
+      await new Promise(r => setTimeout(r, 400));
+
+      if (spinner) spinner.style.display = 'none';
+      verifyBtn.disabled = false;
+
+      if (entered === activeFallbackOtp) {
+        document.getElementById('fallback-otp-card').classList.add('hidden');
+        document.getElementById('error-banner').classList.add('hidden');
+        setOverallStatus('verified', 'Verified (via Fallback OTP)');
+        showSuccess(currentSubmittedEmail || 'user@gmail.com');
+        
+        // Update success banner text to indicate fallback completion
+        const bannerSub = document.querySelector('#success-banner p');
+        if (bannerSub) {
+          bannerSub.textContent = 'Verified via traditional 6-digit OTP fallback. (Compare: Direct EVP verification achieves 0.2s zero-friction login).';
+        }
+      } else {
+        alert(`Incorrect fallback code. Entered: ${entered}, Expected: ${activeFallbackOtp}`);
+      }
+    });
+  }
 }
 
 /* UI Helper Functions */
@@ -693,6 +797,8 @@ function showError(message) {
 function resetResults() {
   document.getElementById('success-banner').classList.add('hidden');
   document.getElementById('error-banner').classList.add('hidden');
+  const fallbackCard = document.getElementById('fallback-otp-card');
+  if (fallbackCard) fallbackCard.classList.add('hidden');
   document.getElementById('trace-steps-list').innerHTML = '';
 }
 
