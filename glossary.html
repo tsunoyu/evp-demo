@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVP Glossary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0a0a0a',
+                        cardBg: '#111111',
+                        cardBorder: '#262626',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0a0a0a; 
+            color: #ededed; 
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #404040; }
+    </style>
+</head>
+<body>
+    <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-8 min-h-screen">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-center pb-4 border-b border-cardBorder mt-4">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-600 flex items-center justify-center shadow-lg">
+                    <i data-lucide="book-open-text" class="w-7 h-7 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-white">EVP Glossary</h1>
+                    <p class="text-sm text-neutral-400 mt-0.5">Terms, Protocols, and Cryptography Concepts</p>
+                </div>
+            </div>
+            <a href="index.html" class="text-sm text-neutral-400 hover:text-white flex items-center gap-2 transition-colors bg-cardBg border border-cardBorder px-4 py-2 rounded-lg hover:border-neutral-600 font-medium">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Demo
+            </a>
+        </header>
+
+        <main class="space-y-12 pb-16">
+            
+            <!-- 1. Roles & Protocols -->
+            <section>
+                <h2 class="text-xl font-bold mb-5 flex items-center gap-2 text-white border-b border-cardBorder pb-2">
+                    <i data-lucide="users-round" class="w-5 h-5 text-blue-500"></i> 1. Roles & Protocols
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-blue-400 font-mono font-bold text-lg">EVP</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">Email Verification Protocol</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">The web browser standard that allows websites to automatically verify email ownership without manual OTPs or magic links.</p>
+                    </div>
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-emerald-400 font-mono font-bold text-lg">IdP</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">Identity Provider</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">The organization hosting the email account (e.g., Google, Yahoo) that issues the cryptographic proof of email ownership.</p>
+                    </div>
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-purple-400 font-mono font-bold text-lg">RP</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">Relying Party</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">Your website or backend application that relies on the token to verify the user's email address.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. Tokens, Keys & Standards -->
+            <section>
+                <h2 class="text-xl font-bold mb-5 flex items-center gap-2 text-white border-b border-cardBorder pb-2">
+                    <i data-lucide="key" class="w-5 h-5 text-emerald-500"></i> 2. Tokens, Keys & Standards
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-emerald-400 font-mono font-bold text-lg">EVT</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">Email Verification Token</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">The core identity token issued by the IdP stating: "This email address is verified."</p>
+                    </div>
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-emerald-400 font-mono font-bold text-lg">SD-JWT</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">Selective Disclosure JWT</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">The signed JWT format used for the EVT. It allows selective disclosure (hiding unneeded user attributes or keeping them as hashes).</p>
+                    </div>
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-blue-400 font-mono font-bold text-lg">KB-JWT</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">Key-Bound JWT</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">A secondary token generated by the user's browser. It binds the EVT to that specific browser instance so nobody else can steal and reuse it.</p>
+                    </div>
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-orange-400 font-mono font-bold text-lg">JOSE</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">JS Object Signing & Encryption</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">The overarching standard for JSON-based cryptography (covers JWTs, JWKs, Signatures, and Encryption).</p>
+                    </div>
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-orange-400 font-mono font-bold text-lg">JWK</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">JSON Web Key</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">A single cryptographic key formatted as a JSON object (contains fields like <code>kty</code> for key type, <code>crv</code> for curve, <code>x</code> for public key data).</p>
+                    </div>
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-orange-400 font-mono font-bold text-lg">JWKS</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">JSON Web Key Set</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">A collection of JWKs published by the IdP. Your server downloads these public keys to verify the IdP's signature on the EVT.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Token Payload Claims -->
+            <section>
+                <h2 class="text-xl font-bold mb-5 flex items-center gap-2 text-white border-b border-cardBorder pb-2">
+                    <i data-lucide="file-json-2" class="w-5 h-5 text-yellow-500"></i> 3. Token Payload Claims & Fields
+                </h2>
+                <div class="bg-cardBg border border-cardBorder rounded-xl overflow-hidden">
+                    <table class="w-full text-left text-sm text-neutral-300">
+                        <thead class="bg-[#171717] border-b border-cardBorder text-neutral-400">
+                            <tr>
+                                <th class="px-5 py-3 font-semibold">Field Name</th>
+                                <th class="px-5 py-3 font-semibold hidden sm:table-cell">Full Name</th>
+                                <th class="px-5 py-3 font-semibold">Explanation</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-cardBorder">
+                            <tr class="hover:bg-[#111111] transition-colors">
+                                <td class="px-5 py-3 font-mono text-yellow-400 font-bold">iss</td>
+                                <td class="px-5 py-3 text-neutral-500 hidden sm:table-cell">Issuer</td>
+                                <td class="px-5 py-3 leading-relaxed">The origin of the IdP that generated the token (e.g., <code>https://accounts.google.com</code>).</td>
+                            </tr>
+                            <tr class="hover:bg-[#111111] transition-colors">
+                                <td class="px-5 py-3 font-mono text-yellow-400 font-bold">aud</td>
+                                <td class="px-5 py-3 text-neutral-500 hidden sm:table-cell">Audience</td>
+                                <td class="px-5 py-3 leading-relaxed">The target origin the token was issued for — must match your website's domain.</td>
+                            </tr>
+                            <tr class="hover:bg-[#111111] transition-colors">
+                                <td class="px-5 py-3 font-mono text-yellow-400 font-bold">nonce</td>
+                                <td class="px-5 py-3 text-neutral-500 hidden sm:table-cell">Number Used Once</td>
+                                <td class="px-5 py-3 leading-relaxed">A random single-use code generated by your backend form to ensure the token cannot be replayed later.</td>
+                            </tr>
+                            <tr class="hover:bg-[#111111] transition-colors">
+                                <td class="px-5 py-3 font-mono text-yellow-400 font-bold">iat</td>
+                                <td class="px-5 py-3 text-neutral-500 hidden sm:table-cell">Issued At</td>
+                                <td class="px-5 py-3 leading-relaxed">A Unix timestamp indicating when the token was created.</td>
+                            </tr>
+                            <tr class="hover:bg-[#111111] transition-colors">
+                                <td class="px-5 py-3 font-mono text-yellow-400 font-bold">email_verified</td>
+                                <td class="px-5 py-3 text-neutral-500 hidden sm:table-cell">Email Verif. Status</td>
+                                <td class="px-5 py-3 leading-relaxed">Boolean flag (<code>true</code> / <code>false</code>) stating whether the IdP has confirmed the user's email.</td>
+                            </tr>
+                            <tr class="hover:bg-[#111111] transition-colors">
+                                <td class="px-5 py-3 font-mono text-yellow-400 font-bold">cnf</td>
+                                <td class="px-5 py-3 text-neutral-500 hidden sm:table-cell">Confirmation Claim</td>
+                                <td class="px-5 py-3 leading-relaxed">A JSON wrapper claim inside the EVT payload holding the confirmation method details.</td>
+                            </tr>
+                            <tr class="hover:bg-[#111111] transition-colors">
+                                <td class="px-5 py-3 font-mono text-yellow-400 font-bold">cnf.jwk</td>
+                                <td class="px-5 py-3 text-neutral-500 hidden sm:table-cell">Embedded Public Key</td>
+                                <td class="px-5 py-3 leading-relaxed">The browser's temporary Public Key embedded inside the <code>cnf</code> claim of the EVT by the IdP.</td>
+                            </tr>
+                            <tr class="hover:bg-[#111111] transition-colors">
+                                <td class="px-5 py-3 font-mono text-yellow-400 font-bold">sd_hash</td>
+                                <td class="px-5 py-3 text-neutral-500 hidden sm:table-cell">Selective Discl. Hash</td>
+                                <td class="px-5 py-3 leading-relaxed">A SHA-256 fingerprint inside the KB-JWT payload that locks the KB-JWT to its specific SD-JWT.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 4. Fundamental Cryptography Concepts -->
+            <section>
+                <h2 class="text-xl font-bold mb-5 flex items-center gap-2 text-white border-b border-cardBorder pb-2">
+                    <i data-lucide="shield" class="w-5 h-5 text-red-500"></i> 4. Fundamental Cryptography Concepts
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Hash -->
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-6 relative overflow-hidden group hover:border-[#3f3f46] transition-colors">
+                        <div class="absolute top-0 right-0 p-4 opacity-10">
+                            <i data-lucide="hash" class="w-16 h-16"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                            <i data-lucide="hash" class="w-5 h-5 text-red-400"></i> Hash <span class="text-neutral-500 text-sm font-mono font-normal">(SHA-256)</span>
+                        </h3>
+                        <p class="text-neutral-300 text-sm mb-4 leading-relaxed"><strong>What it is:</strong> A 1-way digital fingerprint of data.</p>
+                        <p class="text-neutral-300 text-sm mb-4 leading-relaxed"><strong>Key Characteristic:</strong> Uses NO secret key. Anyone hashing the exact same text with SHA-256 will always get the exact same result string.</p>
+                        <div class="bg-[#171717] border border-cardBorder rounded-lg p-3">
+                            <p class="text-neutral-400 text-xs uppercase tracking-widest font-bold mb-1">Used For</p>
+                            <p class="text-neutral-300 text-sm">Checking Integrity (<code>sd_hash</code>) to verify data wasn't tampered with or swapped.</p>
+                        </div>
+                    </div>
+
+                    <!-- Ephemeral Key -->
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-6 relative overflow-hidden group hover:border-[#3f3f46] transition-colors">
+                        <div class="absolute top-0 right-0 p-4 opacity-10">
+                            <i data-lucide="key-round" class="w-16 h-16"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                            <i data-lucide="key-round" class="w-5 h-5 text-blue-400"></i> Ephemeral Key
+                        </h3>
+                        <p class="text-neutral-300 text-sm mb-4 leading-relaxed"><strong>What it is:</strong> A temporary public/private keypair created by the browser for a single transaction.</p>
+                        <p class="text-neutral-300 text-sm mb-4 leading-relaxed"><strong>Key Characteristic:</strong> Thrown away immediately after the form submission completes.</p>
+                        <div class="bg-[#171717] border border-cardBorder rounded-lg p-3">
+                            <p class="text-neutral-400 text-xs uppercase tracking-widest font-bold mb-1">Used For</p>
+                            <p class="text-neutral-300 text-sm">Proof of Possession. Proves the client submitting the form holds the private key matching the public key sealed inside the EVT.</p>
+                        </div>
+                    </div>
+
+                    <!-- Digital Signature -->
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-6 relative overflow-hidden group hover:border-[#3f3f46] transition-colors">
+                        <div class="absolute top-0 right-0 p-4 opacity-10">
+                            <i data-lucide="pen-tool" class="w-16 h-16"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                            <i data-lucide="pen-tool" class="w-5 h-5 text-emerald-400"></i> Digital Signature
+                        </h3>
+                        <p class="text-neutral-300 text-sm mb-4 leading-relaxed"><strong>What it is:</strong> A cryptographic seal produced using a Private Key and verified using a Public Key.</p>
+                        <p class="text-neutral-300 text-sm mb-1 leading-relaxed"><br></p>
+                        <div class="bg-[#171717] border border-cardBorder rounded-lg p-3 mt-4">
+                            <p class="text-neutral-400 text-xs uppercase tracking-widest font-bold mb-1">Used For</p>
+                            <p class="text-neutral-300 text-sm">Authenticity & Non-repudiation. Proves who created the message (e.g., IdP signed EVT; Browser signed KB-JWT).</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
