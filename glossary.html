@@ -136,7 +136,28 @@
                             <span class="text-orange-400 font-mono font-bold text-lg">JWKS</span>
                             <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">JSON Web Key Set</span>
                         </div>
-                        <p class="text-neutral-300 text-sm leading-relaxed">A collection of JWKs published by the IdP. Your server downloads these public keys to verify the IdP's signature on the EVT.</p>
+                        <p class="text-neutral-300 text-sm leading-relaxed">A collection of JWKs published by the IdP at <code>/.well-known/vc-public-jwks</code>. Because <code>kid</code> is optional in <code>evt+jwt</code> headers (e.g. Gmail omits <code>kid</code>), verifiers iterate over candidate JWKS keys when <code>kid</code> is absent.</p>
+                    </div>
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-cyan-400 font-mono font-bold text-lg">RFC 9421</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">HTTP Message Signatures</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">Used by Chrome 153–156+ on <code>POST /email-verification/issuance</code> via <code>Signature</code>, <code>Signature-Input</code> (covering <code>"@method" "@target-uri" "content-digest" "sec-fetch-dest" "signature-key"</code>), and <code>Signature-Key: sig=hwk;...</code>.</p>
+                    </div>
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-pink-400 font-mono font-bold text-lg">EdDSA &amp; ES256</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">Ed25519 &amp; ECDSA P-256</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">The two asymmetric signing algorithms supported in EVP for both Issuer EVTs (<code>evt+jwt</code>) and Browser Ephemeral Holder keys (<code>cnf.jwk</code>, <code>Signature-Key</code>, <code>kb+jwt</code>).</p>
+                    </div>
+                    <div class="bg-cardBg border border-cardBorder rounded-xl p-5 hover:border-[#3f3f46] transition-colors">
+                        <div class="flex items-baseline gap-2 mb-2">
+                            <span class="text-purple-400 font-mono font-bold text-lg">emailverified</span>
+                            <span class="text-neutral-500 text-xs uppercase tracking-wider font-semibold">EmailVerifiedEvent &amp; Sec-Fetch-Dest</span>
+                        </div>
+                        <p class="text-neutral-300 text-sm leading-relaxed">DOM event fired by Chrome 152–156+ carrying <code>e.presentationToken</code> after issuance completes with <code>Sec-Fetch-Dest: email-verification</code> and exact email case preservation (Chrome 156+).</p>
                     </div>
                 </div>
             </section>

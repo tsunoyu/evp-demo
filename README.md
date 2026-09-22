@@ -1,110 +1,132 @@
-# Email Verification Protocol (EVP) - Relying Party (RP) Demo
+# Email Verification Protocol (EVP) - Relying Party (RP) & Localhost Mock Issuer Demo
 
-This repository contains a simple, premium, and fully client-side implementation of a **Relying Party (RP)** website that demonstrates both **Email Verification Protocol (EVP)** and **Traditional Authentication Flows (OTP Passcode & Magic Link)** with interactive context-switch and friction benchmark tools. 
+This repository contains both:
+1. **A 100% Client-Side Relying Party (RP) & Friction Benchmark SPA** (`index.html`, `app.js`, `traditional.html`, `explainer.html`, `glossary.html`) ready for **GitHub Pages** deployment.
+2. **A Zero-Dependency Node.js Localhost Verifier, RFC 9421 Mock Issuer, & Automated Test Suite** (`server.js`, `evp-core.js`, `test/evp.test.js`, and [`PARTNER_LOCALHOST_GUIDE.md`](PARTNER_LOCALHOST_GUIDE.md)) implementing the **Email Verification Protocol (EVP) specifications**.
 
-Because this implementation is 100% client-side (serverless), it is fully compatible with and ready to be deployed directly to **GitHub Pages**.
+> [!IMPORTANT]
+> **Do I need to register an Origin Trial token to test EVP on `localhost`?**
+> **No.** For `localhost` testing (`http://localhost:3000`), you **do NOT need to register an Origin Trial token** or own a public domain.
+> Simply enable **`chrome://flags/#email-verification-protocol`** in Chrome (or launch Chrome from the terminal with `--enable-features=EmailVerificationProtocol`).
+>
+> **Why this also fixes Chrome 156 (`No verification token was sent by the browser`):**
+> The Email Verification Protocol Origin Trial was configured for **Chrome 150–155**. On **Chrome 156+**, a website's `Origin-Trial` token alone no longer activates EVP unless `chrome://flags/#email-verification-protocol` (`--enable-features=EmailVerificationProtocol`) is enabled.
 
 ---
 
-## Interactive Demo Flow Overview
+## Key Protocol Features Implemented
 
-1. **⚡ [EVP Protocol Page](file:///Users/tsunoyu/mac_local_dev/evp-demo/index.html)** (`index.html`):
-   - Demonstrates 1-click, instant in-browser cryptographic verification via Chrome autofill.
+Both the Node.js verifier/issuer (`evp-core.js` + `server.js`) and the client-side verifier (`app.js` + `index.html`) implement the full EVP specification:
+
+- **RFC 9421 HTTP Message Signatures (`Signature-Input` & `Signature-Key`)**:
+  - Supports Chrome 154–156's default covered components `("@method" "@target-uri" "content-digest" "sec-fetch-dest" "signature-key")` as well as backward compatibility with Chrome 153's `("@method" "@authority" "@path" "content-digest" "signature-key")`.
+  - Dynamically reconstructs `@signature-params` in the exact component order specified by the browser and parses both quoted and unquoted RFC 8941 `Signature-Key` (`hwk`) parameters.
+- **`Sec-Fetch-Dest: email-verification`**:
+  - Issuance endpoint accepts Chrome 154–156's hyphenated `Sec-Fetch-Dest: email-verification` header (plus Chrome 153's `emailverification`) and rejects invalid destinations.
+- **Optional `kid` in EVT Header (Gmail Compatibility)**:
+  - Gmail omits `kid` in its `evt+jwt` header. Both `evp-core.js` and `app.js` prioritize `kid`-matching JWKS keys when `kid` is present and automatically iterate through all candidate JWKS keys when `kid` is omitted.
+- **Dual `EdDSA` (`Ed25519`) & `ES256` (`ECDSA P-256`) Support**:
+  - Full cryptographic generation and verification support for both `EdDSA` (`OKP` / `Ed25519`) and `ES256` (`EC` / `P-256`) across Issuer EVTs (`evt+jwt`) and Browser Ephemeral Holder keys (`cnf.jwk`, `Signature-Key`, `kb+jwt`).
+- **Exact `email` Claim Casing Preservation (Chrome 156+)**:
+  - Preserves the exact email casing submitted by the user (e.g., `First.Last@evp.local`) in the issued `evt+jwt` and verified output.
+- **`emailverified` Event Handling & Runtime `EmailVerifiedEvent` Detection**:
+  - Listens for the `emailverified` DOM event (`e.presentationToken || e.detail?.presentationToken`) and checks `'EmailVerifiedEvent' in window` at runtime to warn Chrome 156+ users if `chrome://flags/#email-verification-protocol` is disabled.
+
+---
+
+## Quick Start: Run & Test on `localhost` (Zero Dependencies)
+
+Requires **Node.js 20+ / 22+**. No `npm install` is needed because `server.js`, `evp-core.js`, and `test/evp.test.js` use only built-in Node.js modules (`node:http`, `node:crypto`, `node:dns/promises`, `node:test`).
+
+### 1. Run the Automated Test Suite
+```bash
+npm test
+# or directly:
+node --test test/evp.test.js
+```
+
+### 2. Start the Localhost Verifier, Mock Issuer & Static Demo Server
+```bash
+npm start
+# or directly:
+node server.js
+```
+
+Then open your browser to:
+- **`http://localhost:3000/`** — **Server-Side Localhost Verifier & RFC 9421 Mock Issuer** (with 1-click offline browser simulation, `EdDSA`/`ES256` & `kid` toggles, and native Chrome 150–156+ form submission).
+- **`http://localhost:3000/index.html`** — **Client-Side SPA Verifier & Protocol Inspector** (with 1-click in-browser `EdDSA`/`ES256` simulator, `emailverified` listener, and Google DoH lookup).
+- **`http://localhost:3000/traditional.html`** — **Traditional Auth (6-Digit OTP & Magic Link) Friction Benchmark**.
+- **`http://localhost:3000/explainer.html`** — **Interactive EVP Architecture Explainer**.
+- **`http://localhost:3000/glossary.html`** — **EVP & Cryptographic Glossary**.
+
+---
+
+## Interactive Demo Pages Overview
+
+1. **🖥️ [Localhost Server & Mock Issuer](server.js)** (`http://localhost:3000/`):
+   - Full server-side Relying Party Verifier + RFC 9421 Mock Issuer (`/.well-known/email-verification`, `/.well-known/vc-public-jwks`, `/email-verification/issuance`, `/api/simulate-browser-issuance`).
+   - Allows toggling `EdDSA (Ed25519)` vs. `ES256 (ECDSA P-256)` and `kid` included vs. omitted (Gmail compatibility mode).
+
+2. **⚡ [Client-Side EVP Protocol Page](index.html)** (`index.html` + `app.js`):
+   - Demonstrates 1-click instant in-browser cryptographic verification via Chrome autofill (`emailverified` event) or the built-in **⚡ Simulate Browser EVP Flow & Verify** button.
    - Zero context switches, zero SMTP infrastructure, sub-second latency (~0.2s).
-   
-2. **✉️ [Traditional Auth Page](file:///Users/tsunoyu/mac_local_dev/evp-demo/traditional.html)** (`traditional.html`):
-   - Interactive simulation of legacy **6-Digit OTP** and **Magic Link** authentication.
-   - Features a **Live Friction & Latency Stopwatch**, **App Context Switch Counter (2 switches)**, and **Drop-off Probability Calculator**.
-   - Built-in **Simulated Email Inbox Widget** allowing users to test manual code copying or magic link activation.
-   - **Friction & Security Inspector**: Live trace of form dispatch, SMTP delivery queue delays, MTA relays, and vulnerability audit (Phishing AitM relay attacks, scanner pre-fetching token detonation, SMTP relay costs).
 
-3. **📊 Side-by-Side Benchmark Modal**:
-   - Accessible from the header navigation (`Compare Flows`) on any page.
-   - Highlighting side-by-side metric tables (Latency, Friction, Phishing Vulnerability, Deliverability, Server Costs).
+3. **✉️ [Traditional Auth Page](traditional.html)** (`traditional.html`):
+   - Interactive simulation of legacy **6-Digit OTP** and **Magic Link** authentication.
+   - Features a **Live Friction & Latency Stopwatch**, **App Context Switch Counter (2 switches)**, **Drop-off Probability Calculator**, and **Simulated Email Inbox Widget**.
+
+---
+
+## Troubleshooting Chrome 156: Why `No verification token was sent by the browser` Happens on `rowan.fyi` vs. `localhost`
+
+If you test `https://rowan.fyi/made/email-verification` on **Chrome 156** and see:
+> `Requires Chrome 150+, you're on Chrome 156: the API is supported.`
+> `✅ Signed in to the demo provider as demo@rowan.fyi.`
+> `⚠️ Verification failed. No verification token was sent by the browser.`
+
+There are **3 root causes** (all resolved in this repository):
+
+1. **Origin Trial Milestone Ceiling (`M150–155` vs. `Chrome 156`)**:
+   - The Chrome Origin Trial token embedded in `rowan.fyi/made/email-verification` only covers **Chrome 150–155**. On **Chrome 156**, the Origin Trial token does not activate `EmailVerificationProtocol` unless **`chrome://flags/#email-verification-protocol`** (`--enable-features=EmailVerificationProtocol`) is enabled.
+   - Meanwhile, `rowan.fyi` only checks `Chrome/156 >= 150` in `navigator.userAgent` rather than checking `'EmailVerifiedEvent' in window`. Both `server.js` and `app.js` in this repo check `'EmailVerifiedEvent' in window` at runtime and warn you if the flag is disabled.
+2. **RFC 9421 `Signature-Input` Component Change (`@target-uri` vs. `@authority` / `@path`)**:
+   - Chrome 154–156 sends `Signature-Input: sig=("@method" "@target-uri" "content-digest" "sec-fetch-dest" "signature-key");created=...`, whereas `rowan.fyi`'s `issuance.ts` hardcoded `["@method", "@authority", "@path", "content-digest", "signature-key"]` and rejected Chrome 154–156 requests with `400 Bad Request`.
+   - `evp-core.js` supports both `"@target-uri"` (Chrome 154–156) and `"@authority"` + `"@path"` (Chrome 153).
+3. **Exiting (`blur`) the Email Input Field Before Clicking Verify / Sign Up**:
+   - When typing an email address instead of selecting an autofill suggestion, Chrome triggers the background EVP issuance flow when the user **exits (`blur` / presses `Tab`)** the `<input type="email">` field. Always press `Tab` and wait ~1 second for the inline checkmark (or `emailverified` event) before clicking Verify / Sign Up.
 
 ---
 
 ## Implementation Blueprints & Guides
 
-To help you implement the Relying Party in your own environment, we provide two comprehensive guides with full source code:
-
-1. **[Client-Side (SPA) Blueprint](file:///Users/tsunoyu/mac_local_dev/evp-demo/EVP_IMPLEMENTATION_GUIDE.md)**: A fully client-side, serverless implementation that performs cryptographic verification in the browser using the `jose` library via CDN. Great for static hosting (like GitHub Pages).
-2. **[Server-Side (Node.js/Express) Blueprint](file:///Users/tsunoyu/mac_local_dev/evp-demo/EVP_SERVER_IMPLEMENTATION_GUIDE.md)**: A secure, production-ready server-side implementation using Node.js, Express, and TypeScript. Cryptographic verification is handled entirely on the server using Node's native `crypto` and `dns` modules.
-
----
-
-## How It Works (Client-Side Cryptographic Verification)
-Normally, cryptographic verification of the EVP token happens on the server side to prevent client-side bypasses. However, for the purpose of a public demo and hosting on static environments like GitHub Pages, this project implements the entire **6-step verification pipeline** directly in the browser:
-
-1. **Token Decomposition & Parsing**: Splits the token at the `~` character into the Identity Provider's token (`SD-JWT`) and the browser's binding token (`KB-JWT`), and decodes their payloads.
-2. **Local Claims & Session Binding**: Verifies matching email, verification status, audience, and matches the SHA-256 hash of the `SD-JWT` against the `sd_hash` in the `KB-JWT`.
-3. **DNS Delegation Authority Verification**: Uses **DNS-over-HTTPS (DoH)** via `https://dns.google/resolve` to query DNS TXT records (`_email-verification.<email-domain>`) and check if the email domain delegates authority to the token issuer.
-4. **Issuer Discovery & JWKS Fetching**: Discovers the issuer's endpoints and retrieves public keys (`JWKS`). A built-in dictionary handles CORS restrictions for known issuers (like Google).
-5. **Issuer Signature Verification**: Cryptographically verifies the `SD-JWT` signature using the issuer's public keys via the `jose` library.
-6. **Ephemeral Key Binding Verification**: Imports the ephemeral public key from the `SD-JWT` and verifies the signature of the browser's `KB-JWT` to prove possession of the private key.
+1. **[Partner Localhost Testing Guide](PARTNER_LOCALHOST_GUIDE.md)**: Complete walkthrough for testing EVP on `localhost` without a public domain or Origin Trial token (Workflow A: Offline Mock Issuer, Workflow B: Native Chrome + `@gmail.com` on `http://localhost:3000`, Workflow C: Local Custom C++ Issuer with `dnsmasq` + `mkcert`).
+2. **[Client-Side (SPA) Blueprint](EVP_IMPLEMENTATION_GUIDE.md)**: Serverless browser verification guide using `jose` and Google DNS-over-HTTPS (`https://dns.google/resolve`).
+3. **[Server-Side (Node.js/Express) Blueprint](EVP_SERVER_IMPLEMENTATION_GUIDE.md)**: Production server-side verification architecture using Node.js `crypto` and `dns`.
 
 ---
 
-## How to Test with Your Personal Gmail
+## How to Test with Your Personal Gmail on `localhost` or GitHub Pages
 
-To test this protocol with your personal Gmail address, you need to use Chrome Canary or Dev channel with the experimental flag enabled.
-
-### Step 1: Launch Chrome Canary with the EVP Flag
-Open your terminal and launch Chrome Canary with the `EmailVerificationProtocol` feature enabled:
+### Step 1: Enable `chrome://flags/#email-verification-protocol`
+Open Chrome (150–156+) and enable `chrome://flags/#email-verification-protocol`, or launch from the terminal:
 
 * **macOS**:
   ```bash
-  /Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary --enable-features=EmailVerificationProtocol
+  /Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary --enable-features=EmailVerificationProtocol http://localhost:3000
   ```
 * **Linux**:
   ```bash
-  google-chrome-unstable --enable-features=EmailVerificationProtocol
+  google-chrome-unstable --enable-features=EmailVerificationProtocol http://localhost:3000
   ```
 * **Windows**:
   ```cmd
-  start chrome-canary --enable-features=EmailVerificationProtocol
+  start chrome-canary --enable-features=EmailVerificationProtocol http://localhost:3000
   ```
 
-*Alternatively, navigate to `chrome://flags/#email-verification-protocol` in Chrome Canary, change the setting to **Enabled**, and restart the browser.*
-
 ### Step 2: Ensure You Are Logged In
-Make sure you are logged into your `@gmail.com` account in the browser session.
+Make sure you are signed in to your `@gmail.com` account at `https://accounts.google.com` in that Chrome profile.
 
-### Step 3: Trigger Verification on the Demo Site
-1. Open the demo site (either locally or on GitHub Pages).
-2. Click into the **Email Address** input field.
-3. Chrome will display an autofill dropdown showing your saved `@gmail.com` account.
-4. Select your email. The first time, Chrome will show a one-time consent prompt: *"Allow Chrome to verify your email address on supported sites?"*
-5. Click **Allow**. Chrome will automatically populate the hidden cryptographic token.
-6. Click **Sign Up**. The site will run the 6-step verification trace and display a success banner!
-
----
-
-## Local Development & Testing
-
-Since ES modules are loaded dynamically, opening the `index.html` file directly via the `file://` protocol will trigger browser CORS security blocks. You must run a local web server:
-
-1. Start the local server:
-   ```bash
-   npm run start
-   ```
-2. Open your browser and navigate to:
-   ```
-   http://localhost:3000
-   ```
-
-*Note: If you do not have Node/NPM installed, you can run any static server in this directory, for example:*
-* **Python 3**: `python3 -m http.server 3000`
-* **Ruby**: `ruby -run -ehttpd . -p3000`
-
----
-
-## GitHub Pages Deployment
-
-To host this on GitHub Pages:
-
-1. Create a new repository on GitHub.
-2. Commit and push the files in this directory (`index.html`, `style.css`, `app.js`) to the root of your repository's `main` or `master` branch.
-3. Go to your repository's **Settings** > **Pages**.
-4. Under **Build and deployment**, select **Deploy from a branch**, choose your branch (e.g., `main`), and set the folder to `/ (root)`.
-5. Click **Save**. Your site will be live at `https://<username>.github.io/<repository-name>/` within a few minutes.
+### Step 3: Trigger Verification
+1. Open `http://localhost:3000` (or `http://localhost:3000/index.html` or your GitHub Pages URL).
+2. Select your `@gmail.com` address from the autofill dropdown (or type it and press **Tab** to blur the field).
+3. Approve the one-time Chrome prompt if shown, wait for the inline checkmark (`emailverified` event), and click **Verify / Sign up**!

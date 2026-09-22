@@ -1,15 +1,33 @@
 import * as jose from 'https://cdn.jsdelivr.net/npm/jose@5.6.3/+esm';
 
+const SIMULATED_ISSUER_ORIGIN = 'https://mock-issuer.evp.local';
+
 // Well-known issuers dictionary to bypass CORS issues on /.well-known endpoints
 const WELL_KNOWN_ISSUERS = {
   'https://accounts.google.com': {
     issuerMetadata: {
       issuance_endpoint: 'https://accounts.google.com/gsi/email-verification/issue',
       jwks_uri: 'https://verifiablecredentials-pa.googleapis.com/.well-known/vc-public-jwks',
-      signing_alg_values_supported: ['EdDSA']
+      signing_alg_values_supported: ['EdDSA', 'ES256']
     },
     issuerJWKS: null // Will fetch dynamically since it supports CORS
+  },
+  [SIMULATED_ISSUER_ORIGIN]: {
+    issuerMetadata: {
+      issuer: SIMULATED_ISSUER_ORIGIN,
+      issuance_endpoint: `${SIMULATED_ISSUER_ORIGIN}/email-verification/issuance`,
+      jwks_uri: `${SIMULATED_ISSUER_ORIGIN}/.well-known/vc-public-jwks`,
+      signing_alg_values_supported: ['EdDSA', 'ES256']
+    },
+    issuerJWKS: { keys: [] }
   }
+};
+
+// Local/Simulated DNS delegation map for offline & localhost testing
+const LOCAL_DNS_DELEGATIONS = {
+  'evp.local': SIMULATED_ISSUER_ORIGIN,
+  'localhost.example': window.location.origin,
+  'localhost': window.location.origin
 };
 
 // Helper to normalize issuer strings (strips protocol and trailing slashes for robust comparison)
@@ -25,10 +43,167 @@ let currentChallenge = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   initChallenge();
+  checkBrowserEvpSupport();
+  setupEmailVerifiedEventListener();
+  setupSimulatorButton();
   setupFormSubmit();
   setupThemeToggle();
   setupTabs();
 });
+
+// Check Chrome 150-156+ EmailVerifiedEvent support & Origin Trial milestone status
+function checkBrowserEvpSupport() {
+  const statusEl = document.getElementById('evp-api-status');
+  const ua = navigator.userAgent || '';
+  const m = ua.match(/Chrome\/(\d+)/);
+  const chromeVer = m ? parseInt(m[1], 10) : null;
+  const hasEvpEvent = 'EmailVerifiedEvent' in window;
+
+  if (chromeVer && chromeVer >= 150) {
+    if (hasEvpEvent) {
+      if (statusEl) {
+        statusEl.innerHTML = `✅ <strong>Chrome ${chromeVer} detected (<code>EmailVerifiedEvent</code> active)</strong> — No Origin Trial token needed on <code>localhost</code>. Select an autofill email or press <strong>Tab</strong> after typing to trigger <code>emailverified</code>.`;
+      }
+      consoleLog(`Chrome ${chromeVer} detected: window.EmailVerifiedEvent is active.`, 'success');
+    } else {
+      if (statusEl) {
+        statusEl.innerHTML = `⚠️ <strong>Chrome ${chromeVer} detected, but <code>window.EmailVerifiedEvent</code> is disabled!</strong><br>The Chrome Origin Trial token only covers <strong>M150–155</strong>. On <strong>Chrome 156+</strong> (and on <code>localhost</code> without an Origin Trial token), enable <code>chrome://flags/#email-verification-protocol</code> or launch with <code>--enable-features=EmailVerificationProtocol</code>, or click <strong>⚡ Simulate Browser EVP Flow</strong> below.`;
+      }
+      consoleLog(`Chrome ${chromeVer}: window.EmailVerifiedEvent is undefined. Enable chrome://flags/#email-verification-protocol (required on Chrome 156+ where M150-155 Origin Trial tokens do not apply).`, 'highlight');
+    }
+  } else if (statusEl) {
+    statusEl.innerHTML = `ℹ️ <strong>Browser Simulator Ready</strong> — Native EVP autofill requires Chrome 150+ with <code>chrome://flags/#email-verification-protocol</code> enabled, or click <strong>⚡ Simulate Browser EVP Flow &amp; Verify</strong> below to test all 6 cryptographic steps right now.`;
+  }
+}
+
+// Listen for Chrome's `emailverified` event
+function setupEmailVerifiedEventListener() {
+  const emailInput = document.getElementById('email');
+  const evtInput = document.getElementById('evt');
+
+  const handleEmailVerified = (e) => {
+    const token = e.presentationToken || (e.detail && e.detail.presentationToken);
+    if (token && evtInput) {
+      evtInput.value = token;
+      consoleLog('Browser fired `emailverified` event and populated presentationToken!', 'success');
+    }
+  };
+
+  if (emailInput) {
+    emailInput.addEventListener('emailverified', handleEmailVerified);
+  }
+  document.addEventListener('emailverified', handleEmailVerified);
+}
+
+// 1-Click In-Browser Simulator (Chrome 154-156 RFC 9421 @target-uri + Sec-Fetch-Dest: email-verification + EdDSA/ES256 + optional kid)
+function setupSimulatorButton() {
+  const simBtn = document.getElementById('simulate-evp-btn');
+  const form = document.getElementById('login-form');
+  const emailInput = document.getElementById('email');
+  const evtInput = document.getElementById('evt');
+  const algSelect = document.getElementById('sim-alg-select');
+  const includeKidCheckbox = document.getElementById('sim-include-kid');
+
+  if (!simBtn) return;
+
+  simBtn.addEventListener('click', async () => {
+    try {
+      simBtn.disabled = true;
+      const selectedAlg = algSelect ? algSelect.value : 'EdDSA';
+      const includeKid = includeKidCheckbox ? includeKidCheckbox.checked : true;
+      let email = (emailInput.value || '').trim();
+      if (!email) {
+        email = 'First.Last@evp.local';
+        emailInput.value = email;
+      }
+
+      // Ensure email domain maps to our simulated issuer if user entered a non-delegated domain during simulation
+      const domain = email.split('@')[1] || 'evp.local';
+      LOCAL_DNS_DELEGATIONS[domain.toLowerCase()] = SIMULATED_ISSUER_ORIGIN;
+
+      const crvOrAlg = selectedAlg === 'ES256' ? 'ES256' : 'EdDSA';
+      const distractorKeyPair = await jose.generateKeyPair(crvOrAlg, { extractable: true });
+      const issuerKeyPair = await jose.generateKeyPair(crvOrAlg, { extractable: true });
+      const holderKeyPair = await jose.generateKeyPair(crvOrAlg, { extractable: true });
+
+      const distractorJwk = await jose.exportJWK(distractorKeyPair.publicKey);
+      distractorJwk.kid = 'rotated-old-key-0';
+      distractorJwk.use = 'sig';
+      distractorJwk.alg = selectedAlg;
+
+      const issuerPublicJwk = await jose.exportJWK(issuerKeyPair.publicKey);
+      if (includeKid) {
+        issuerPublicJwk.kid = `sim-${selectedAlg.toLowerCase()}-key-1`;
+      }
+      issuerPublicJwk.use = 'sig';
+      issuerPublicJwk.alg = selectedAlg;
+
+      const holderPublicJwk = await jose.exportJWK(holderKeyPair.publicKey);
+
+      // Register simulated JWKS (distractor key first so kid-less Gmail mode tests multi-key loop!)
+      WELL_KNOWN_ISSUERS[SIMULATED_ISSUER_ORIGIN].issuerJWKS = {
+        keys: [distractorJwk, issuerPublicJwk]
+      };
+
+      const now = Math.floor(Date.now() / 1000);
+      const requestBody = JSON.stringify({ email });
+      const digestB64 = await sha256Base64Url(requestBody);
+
+      // Log Chrome 154-156 RFC 9421 HTTP Message Signature headers
+      const sigInput = `sig=("@method" "@target-uri" "content-digest" "sec-fetch-dest" "signature-key");created=${now}`;
+      consoleLog(`Simulated Chrome 154–156 RFC 9421 Issuance Request:`, 'system');
+      consoleLog(`  POST ${SIMULATED_ISSUER_ORIGIN}/email-verification/issuance`);
+      consoleLog(`  Sec-Fetch-Dest: email-verification`);
+      consoleLog(`  Content-Digest: sha-256=:${digestB64}:`);
+      consoleLog(`  Signature-Input: ${sigInput}`);
+
+      // Build EVT (SD-JWT) preserving exact email casing (Chrome 156+)
+      const evtHeader = { alg: selectedAlg, typ: 'evt+jwt' };
+      if (includeKid && issuerPublicJwk.kid) {
+        evtHeader.kid = issuerPublicJwk.kid;
+      }
+
+      const sdJwt = await new jose.SignJWT({
+        iss: SIMULATED_ISSUER_ORIGIN,
+        iat: now,
+        exp: now + 3600,
+        email, // Exact email casing preserved (Chrome 156+)
+        email_verified: true,
+        cnf: { jwk: holderPublicJwk }
+      })
+        .setProtectedHeader(evtHeader)
+        .sign(issuerKeyPair.privateKey);
+
+      const sdHash = await sha256Base64Url(sdJwt + '~');
+
+      const kbJwt = await new jose.SignJWT({
+        aud: window.location.origin,
+        nonce: currentChallenge,
+        iat: now,
+        sd_hash: sdHash
+      })
+        .setProtectedHeader({ alg: selectedAlg, typ: 'kb+jwt' })
+        .sign(holderKeyPair.privateKey);
+
+      const presentationToken = `${sdJwt}~${kbJwt}`;
+      evtInput.value = presentationToken;
+
+      // Dispatch custom `emailverified` event matching Chrome's spec
+      emailInput.dispatchEvent(
+        new CustomEvent('emailverified', {
+          bubbles: true,
+          detail: { presentationToken }
+        })
+      );
+
+      form.requestSubmit();
+    } catch (err) {
+      consoleLog(`Simulation error: ${err.message}`, 'error');
+    } finally {
+      simBtn.disabled = false;
+    }
+  });
+}
 
 // Tab Navigation for Protocol Inspector
 function setupTabs() {
@@ -117,6 +292,10 @@ function setupFormSubmit() {
 
     const result = await verifyEVPToken(evtToken, email);
     
+    // Consume and rotate the single-use session challenge (nonce) after each verification attempt
+    evtInput.value = '';
+    initChallenge();
+
     submitSpinner.style.display = 'none';
     submitBtn.disabled = false;
 
@@ -152,8 +331,11 @@ function consoleLog(message, type = '') {
 
 function decodeJwtPart(part) {
   try {
-    const binary = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(binary);
+    const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
   } catch (e) {
     return { error: 'Failed to decode part: ' + e.message };
   }
@@ -189,7 +371,9 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
 
   let sdJwtString = '';
   let kbJwtString = '';
+  let evtJwtDecodedHeader = null;
   let sdPayload = null;
+  let kbJwtDecodedHeader = null;
   let kbPayload = null;
   let idpJwksUri = null;
   let issuerMetadata = null;
@@ -210,10 +394,14 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       throw new Error('Tokens must be valid 3-part JWS strings.');
     }
 
-    const evtJwtDecodedHeader = decodeJwtPart(sdParts[0]);
+    evtJwtDecodedHeader = decodeJwtPart(sdParts[0]);
     sdPayload = decodeJwtPart(sdParts[1]);
-    const kbJwtDecodedHeader = decodeJwtPart(kbParts[0]);
+    kbJwtDecodedHeader = decodeJwtPart(kbParts[0]);
     kbPayload = decodeJwtPart(kbParts[1]);
+
+    if (evtJwtDecodedHeader.error || sdPayload.error || kbJwtDecodedHeader.error || kbPayload.error) {
+      throw new Error('Malformed Base64URL JSON in EVT or KB-JWT segments.');
+    }
 
     consoleLog('6.5.1: parsed EVT+KB by separating the EVT and KB-JWT at the tilde');
     consoleLog('5.3.1: parsed JWT into header, payload, and signature components');
@@ -271,17 +459,26 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       tokenHash
     };
 
-    consoleLog(`6.1.1: required alg is present: "${kbPayload.alg || 'EdDSA'}"`);
+    const allowedAlgs = ['EdDSA', 'Ed25519', 'ES256'];
+    if (!kbJwtDecodedHeader.alg || !allowedAlgs.includes(kbJwtDecodedHeader.alg)) {
+      throw new Error(`Unsupported or missing KB-JWT alg: "${kbJwtDecodedHeader.alg || 'none'}". Expected EdDSA or ES256.`);
+    }
+    if (kbJwtDecodedHeader.typ !== 'kb+jwt') {
+      throw new Error(`Invalid KB-JWT typ: "${kbJwtDecodedHeader.typ}". Expected "kb+jwt".`);
+    }
+
+    consoleLog(`6.1.1: required alg is present: "${kbJwtDecodedHeader.alg}"`);
     consoleLog('6.1.1: KB-JWT alg is not none');
-    consoleLog(`6.1.1: required typ is present: "${kbPayload.typ || 'kb+jwt'}"`);
+    consoleLog(`6.1.1: required typ is present: "${kbJwtDecodedHeader.typ}"`);
     consoleLog('6.1.1: KB-JWT typ is kb+jwt');
     consoleLog(`6.1.2: required aud is present: "${tokenAudience}"`);
     consoleLog(`6.1.2: required nonce is present: "${tokenNonce}"`);
     consoleLog(`6.1.2: required iat is present: ${kbPayload.iat}`);
     consoleLog(`6.1.2: required sd_hash is present: "${tokenHash}"`);
 
-    if (!submittedEmail || submittedEmail.trim().toLowerCase() !== tokenEmail.trim().toLowerCase()) {
-      throw new Error(`Email mismatch. Submitted: "${submittedEmail}", Token: "${tokenEmail}"`);
+    // Chrome 156+ requires exact email casing preservation between form input and EVT claim
+    if (!submittedEmail || !tokenEmail || submittedEmail.trim() !== tokenEmail.trim()) {
+      throw new Error(`Email mismatch (Chrome 156+ enforces exact email case preservation). Submitted: "${submittedEmail}", Token: "${tokenEmail}"`);
     }
     if (emailVerifiedClaim !== true) {
       throw new Error('Email verified claim is not true.');
@@ -299,12 +496,12 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     }
     consoleLog('6.5.5: KB-JWT nonce matches the RP session nonce', 'success');
 
-    const timeDiff = Math.abs(Math.floor(Date.now() / 1000) - kbPayload.iat);
-    if (timeDiff <= 600) {
-      consoleLog('6.5.6: iat is within 600 seconds of now', 'success');
-    } else {
-      consoleLog(`6.5.6: iat is NOT within 600 seconds of now (${timeDiff}s difference)`, 'highlight');
+    const nowSec = Math.floor(Date.now() / 1000);
+    const timeDiff = Math.abs(nowSec - kbPayload.iat);
+    if (typeof kbPayload.iat !== 'number' || timeDiff > 600) {
+      throw new Error(`KB-JWT iat timestamp (${kbPayload.iat}) is outside the valid 600s window (diff: ${timeDiff}s).`);
     }
+    consoleLog('6.5.6: iat is within 600 seconds of now', 'success');
 
     if (calculatedEvtHash !== tokenHash) {
       throw new Error(`Hash binding mismatch. Calculated: "${calculatedEvtHash}", Token sd_hash: "${tokenHash}"`);
@@ -316,11 +513,12 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       step: 2,
       name: 'Local Claims & Session Binding Verification',
       status: 'success',
-      description: 'Verify local, non-cryptographic claims (email match, verification status, audience, nonce, and cryptographic hash binding) to fail fast before doing network or crypto operations.',
+      description: 'Verify local claims (exact Chrome 156+ email casing match, verification status, audience, single-use nonce, timestamp freshness, and cryptographic hash binding).',
       inputs,
       outputs: {
         localChecksPassed: true,
-        details: 'All local claims, session nonce, target audience, and hash binding checks matched successfully.'
+        exactEmailCaseMatched: submittedEmail.trim() === tokenEmail.trim(),
+        details: 'All local claims, exact email case, session nonce, target audience, and hash binding checks matched successfully.'
       }
     });
   } catch (error) {
@@ -355,12 +553,12 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     
     const issuerHost = new URL(tokenIssuer).hostname;
     
-    consoleLog(`5.1.1: required alg is present: "${decodeJwtPart(sdJwtString.split('.')[0]).alg || 'EdDSA'}"`);
+    consoleLog(`5.1.1: required alg is present: "${evtJwtDecodedHeader.alg || 'EdDSA'}"`);
     consoleLog('5.1.1: EVT alg is not none');
-    if (!decodeJwtPart(sdJwtString.split('.')[0]).kid) {
+    if (!evtJwtDecodedHeader.kid) {
       consoleLog('5.1.1: EVT kid is missing; trying all issuer keys as a compatibility fallback', 'highlight');
     }
-    consoleLog(`5.1.1: required typ is present: "${decodeJwtPart(sdJwtString.split('.')[0]).typ || 'evt+jwt'}"`);
+    consoleLog(`5.1.1: required typ is present: "${evtJwtDecodedHeader.typ || 'evt+jwt'}"`);
     consoleLog('5.1.1: EVT typ is evt+jwt');
     consoleLog(`5.1.2: required iss is present: "${tokenIssuer}"`);
     consoleLog(`5.1.2: required iat is present: ${sdPayload.iat}`);
@@ -368,24 +566,35 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     consoleLog(`5.1.2: required email is present: "${sdPayload.email}"`);
     consoleLog(`5.1.2: required email_verified is present: ${sdPayload.email_verified}`);
     if (sdPayload.cnf?.jwk?.crv === 'Ed25519') {
-      consoleLog('5.1.2: cnf.jwk contains an Ed25519 public key');
+      consoleLog('5.1.2: cnf.jwk contains an Ed25519 (EdDSA) public key');
+    } else if (sdPayload.cnf?.jwk?.crv === 'P-256') {
+      consoleLog('5.1.2: cnf.jwk contains a P-256 (ES256) public key');
     }
     consoleLog('5.1.2: email has valid address syntax');
+    if (submittedEmail.trim() === sdPayload.email.trim()) {
+      consoleLog(`5.3.8: Chrome 156+ exact email casing preserved ("${sdPayload.email}")`, 'success');
+    }
     
     const sdTimeDiff = Math.abs(Math.floor(Date.now() / 1000) - sdPayload.iat);
-    if (sdTimeDiff <= 600) {
-      consoleLog('5.3.7: iat is within 600 seconds of now', 'success');
-    } else {
-      consoleLog(`5.3.7: iat is NOT within 600 seconds of now (${sdTimeDiff}s difference)`, 'highlight');
+    if (typeof sdPayload.iat !== 'number' || sdTimeDiff > 600) {
+      throw new Error(`EVT iat timestamp (${sdPayload.iat}) is outside the valid 600s window (diff: ${sdTimeDiff}s).`);
     }
+    consoleLog('5.3.7: iat is within 600 seconds of now', 'success');
     consoleLog('5.3.8: EVT email_verified is true', 'success');
     consoleLog('3.1: email has valid address syntax');
     consoleLog(`3.1: fetching DNS TXT records for ${dnsLookupTarget}`);
+
+    const localDelegatedIssuer = LOCAL_DNS_DELEGATIONS[emailDomain.toLowerCase()];
 
     if (emailDomain.toLowerCase() === issuerHost.toLowerCase()) {
       authorizedBy = 'Direct Domain Equality (Self-Authoritative)';
       details = 'Email domain directly matches the token issuer host. DNS delegation lookup skipped.';
       consoleLog(`5.3.4: EVT iss claim matches DNS issuer identifier ${normalizeIssuer(tokenIssuer)} (Direct Domain Match)`, 'success');
+    } else if (localDelegatedIssuer && normalizeIssuer(localDelegatedIssuer) === normalizeIssuer(tokenIssuer)) {
+      authorizedBy = 'Local / Simulated DNS Delegation Override';
+      details = `Local/simulated DNS TXT record at ${dnsLookupTarget} ("iss=${localDelegatedIssuer}") delegates authority to ${tokenIssuer}.`;
+      consoleLog(`3.1: local/simulated TXT record for ${dnsLookupTarget}: "iss=${localDelegatedIssuer}"`);
+      consoleLog(`5.3.4: EVT iss claim matches delegated issuer identifier ${normalizeIssuer(tokenIssuer)}`, 'success');
     } else {
       // Perform DNS TXT lookup using DNS-over-HTTPS (DoH)
       const dohUrl = `https://dns.google/resolve?name=${dnsLookupTarget}&type=TXT`;
@@ -531,23 +740,34 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
 
   // --- Step 5: Issuer Signature Cryptographic Verification ---
   try {
-    const signingAlg = decodeJwtPart(sdJwtString.split('.')[0]).alg || 'EdDSA';
-    const kid = decodeJwtPart(sdJwtString.split('.')[0]).kid;
+    const evtHeader = decodeJwtPart(sdJwtString.split('.')[0]);
+    const signingAlg = evtHeader.alg || 'EdDSA';
+    const kid = evtHeader.kid;
+
+    // Prioritize kid-matching keys first when kid is present, then fall back to remaining keys (Gmail compatibility)
+    const candidateKeys = kid
+      ? [
+          ...issuerJWKS.keys.filter((k) => k.kid === kid),
+          ...issuerJWKS.keys.filter((k) => k.kid !== kid),
+        ]
+      : [...issuerJWKS.keys];
 
     if (!kid) {
-      consoleLog('5.3.6: no EVT kid was provided, so checking all issuer public keys', 'highlight');
+      consoleLog('5.3.6: no EVT kid was provided (Gmail compatibility mode), checking all issuer public keys', 'highlight');
     }
     
-    consoleLog(`5.3.6: checking the EVT signature with ${issuerJWKS.keys.length} candidate key(s)`);
+    consoleLog(`5.3.6: checking the EVT signature (${signingAlg}) with ${candidateKeys.length} candidate key(s)`);
 
     let verified = false;
     let verifiedPayload = null;
+    let matchedKeyId = null;
 
-    for (let i = 0; i < issuerJWKS.keys.length; i++) {
-      const key = issuerJWKS.keys[i];
-      consoleLog(`5.3.6: trying issuer signing key #${i + 1}`);
+    for (let i = 0; i < candidateKeys.length; i++) {
+      const key = candidateKeys[i];
+      const keyAlg = key.alg || (key.crv === 'P-256' ? 'ES256' : signingAlg);
+      consoleLog(`5.3.6: trying issuer signing key #${i + 1} (${key.kid || 'no-kid'}, ${keyAlg})`);
       try {
-        const importedKey = await jose.importJWK(key, signingAlg);
+        const importedKey = await jose.importJWK(key, keyAlg);
         consoleLog('Key imported!');
         consoleLog(JSON.stringify(key));
         
@@ -560,6 +780,7 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
         consoleLog(`5.3.6: EVT signature verified with issuer signing key #${i + 1}`, 'success');
         verified = true;
         verifiedPayload = payload;
+        matchedKeyId = key.kid || 'matched-key-without-kid';
         break;
       } catch (err) {
         consoleLog(`Doesn't verify :(`, 'highlight');
@@ -577,13 +798,16 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       step: 5,
       name: 'Issuer Signature Cryptographic Verification',
       status: 'success',
-      description: 'Cryptographically verify the EVT signature using the fetched issuer public keys from their JWKS.',
+      description: 'Cryptographically verify the EVT signature using the fetched issuer public keys from their JWKS (supporting both EdDSA and ES256, and optional kid fallback).',
       inputs: {
         evtJwt: sdJwtString,
-        signingAlg
+        signingAlg,
+        kid: kid || null
       },
       outputs: {
         verifiedPayload,
+        matchedKey: matchedKeyId,
+        kidWasPresentInEvtHeader: Boolean(kid),
         cryptographicallyVerified: true
       }
     });
@@ -608,11 +832,18 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     if (!ephemeralPublicKey) {
       throw new Error('Missing ephemeral key binding (cnf.jwk) in SD-JWT payload.');
     }
+    if (ephemeralPublicKey.d) {
+      throw new Error('Security violation: cnf.jwk must not contain private key parameter "d".');
+    }
 
-    let alg = 'ES256';
+    const kbHeader = decodeJwtPart(kbJwtString.split('.')[0]);
+    let alg = kbHeader.alg || 'ES256';
     if (ephemeralPublicKey.crv === 'Ed25519' || ephemeralPublicKey.alg === 'EdDSA') {
       alg = 'EdDSA';
-      consoleLog('6.5.8: cnf.jwk contains an Ed25519 public key');
+      consoleLog('6.5.8: cnf.jwk contains an Ed25519 (EdDSA) public key');
+    } else if (ephemeralPublicKey.crv === 'P-256' || ephemeralPublicKey.alg === 'ES256') {
+      alg = 'ES256';
+      consoleLog('6.5.8: cnf.jwk contains a P-256 (ES256) public key');
     }
     
     const importedEphemeralKey = await jose.importJWK(ephemeralPublicKey, alg);
@@ -620,12 +851,13 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
     consoleLog(JSON.stringify(ephemeralPublicKey));
 
     const { payload: kbVerifiedPayload } = await jose.jwtVerify(kbJwtString, importedEphemeralKey, {
-      audience: expectedAudience
+      audience: expectedAudience,
+      algorithms: [alg]
     });
 
     consoleLog('Signature with an imported key verifies!!!', 'success');
     consoleLog('6.5.8: KB-JWT signature verified with the public key from EVT cnf.jwk', 'success');
-    consoleLog(`2.7.3: verified KB-JWT signature using public key from EVT cnf.jwk`, 'success');
+    consoleLog(`2.7.3: verified KB-JWT signature using public key from EVT cnf.jwk (${alg})`, 'success');
     consoleLog(`2.7: verified control of ${sdPayload.email}`, 'success');
 
     trace.push({
@@ -635,14 +867,15 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       description: 'Extract the browser\'s ephemeral public key from the validated EVT and cryptographically verify the KB-JWT signature to prove possession of the private key.',
       inputs: {
         cnf: sdPayload.cnf,
-        kbJwt: kbJwtString
+        kbJwt: kbJwtString,
+        kbSigningAlg: alg
       },
       outputs: {
         extractedBrowserJwk: ephemeralPublicKey,
-        kbPayloadHeader: decodeJwtPart(kbJwtString.split('.')[0]),
+        kbPayloadHeader: kbHeader,
         kbPayloadBody: kbVerifiedPayload,
         keyBindingPassed: true,
-        holderVerification: 'Holder Private Key possession verified.'
+        holderVerification: `Holder Private Key possession verified (${alg}).`
       }
     });
   } catch (error) {

@@ -1133,17 +1133,17 @@ async function verifyEVPToken(clientEvtString, submittedEmail) {
       tokenHash
     };
 
-    consoleLog(`6.1.1: required alg is present: "${kbPayload.alg || 'EdDSA'}"`);
+    consoleLog(`6.1.1: required alg is present: "${kbJwtDecodedHeader.alg || 'EdDSA'}"`);
     consoleLog('6.1.1: KB-JWT alg is not none');
-    consoleLog(`6.1.1: required typ is present: "${kbPayload.typ || 'kb+jwt'}"`);
+    consoleLog(`6.1.1: required typ is present: "${kbJwtDecodedHeader.typ || 'kb+jwt'}"`);
     consoleLog('6.1.1: KB-JWT typ is kb+jwt');
     consoleLog(`6.1.2: required aud is present: "${tokenAudience}"`);
     consoleLog(`6.1.2: required nonce is present: "${tokenNonce}"`);
     consoleLog(`6.1.2: required iat is present: ${kbPayload.iat}`);
     consoleLog(`6.1.2: required sd_hash is present: "${tokenHash}"`);
 
-    if (!submittedEmail || submittedEmail.trim().toLowerCase() !== tokenEmail.trim().toLowerCase()) {
-      throw new Error(`Email mismatch. Submitted: "${submittedEmail}", Token: "${tokenEmail}"`);
+    if (!submittedEmail || !tokenEmail || submittedEmail.trim() !== tokenEmail.trim()) {
+      throw new Error(`Email mismatch (Chrome 156+ enforces exact email case preservation). Submitted: "${submittedEmail}", Token: "${tokenEmail}"`);
     }
     if (emailVerifiedClaim !== true) {
       throw new Error('Email verified claim is not true.');

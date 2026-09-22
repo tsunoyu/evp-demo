@@ -1,10 +1,16 @@
 {
   "name": "evp-demo-rp",
-  "version": "1.0.0",
-  "description": "Email Verification Protocol (EVP) Relying Party Demo (GitHub Pages ready)",
-  "type": "module",
+  "version": "1.1.0",
+  "description": "Email Verification Protocol (EVP) Relying Party & Localhost Mock Issuer Demo (Chrome 150-156+ & GitHub Pages ready)",
+  "type": "commonjs",
+  "main": "server.js",
   "scripts": {
-    "start": "npx http-server -p 3000",
-    "dev": "npx http-server -p 3000"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "static": "npx http-server -p 3000",
+    "test": "node --test test/evp.test.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

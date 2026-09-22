@@ -346,67 +346,67 @@
                     {
                         id: 2,
                         title: "Step 02: Clarify Expected Values",
-                        summary: "The server checks that the claims inside the token match Alice's session.",
-                        detail: "Verifies that `email_verified == true`, `email` matches `alice@demo-mail.com`, `nonce` matches the shopping session code, and `aud` matches `shopping.example.com`.",
+                        summary: "The server checks that the claims inside the token match Alice's session (including exact email casing in Chrome 156+).",
+                        detail: "Verifies that `email_verified == true`, `email` matches `alice@demo-mail.com` with exact casing preservation (Chrome 156+), `nonce` matches the single-use shopping session code, and `aud` matches `shopping.example.com`.",
                         activeActors: ['rp'],
                         speechBrowser: "",
                         speechIdP: "",
-                        speechRP: "Checking if this token is actually for Alice, meant for my shopping site, and matches her session nonce.",
+                        speechRP: "Checking if this token is actually for Alice (exact case match), meant for my shopping site, and matches her session nonce.",
                         arrowPath: "rp-internal",
                         codeTitle: "Decoded EVT Claims (JSON)",
-                        codeSnippet: "<div class=\"w-full text-left\">\n{\n  \"email_verified\": true,\n  \"email\": \"alice@demo-mail.com\",\n  \"nonce\": \"xyz123\",\n  \"aud\": \"shopping.example.com\"\n}\n</div>"
+                        codeSnippet: "<div class=\"w-full text-left\">\n{\n  \"email_verified\": true,\n  \"email\": \"alice@demo-mail.com\",\n  \"nonce\": \"xyz123\",\n  \"aud\": \"https://shopping.example.com\"\n}\n</div>"
                     },
                     {
                         id: 3,
                         title: "Step 03: Validate Key Binding & Token Integrity",
-                        summary: "The server verifies that Alice's browser signed the token and that no data was tampered with.",
-                        detail: "Uses the browser's public key (`cnf.jwk`) embedded in the EVT to verify the `KB-JWT` signature. Then computes `SHA-256(EVT + \"~\")` and matches it against `sd_hash`.",
+                        summary: "The server verifies that Alice's browser signed the token (EdDSA or ES256) and that no data was tampered with.",
+                        detail: "Uses the browser's ephemeral public key (`cnf.jwk`, supporting `Ed25519` / `EdDSA` and `P-256` / `ES256` without private `d` parameters) embedded in the EVT to verify the `KB-JWT` signature. Then computes `SHA-256(EVT + \"~\")` and matches it against `sd_hash`.",
                         activeActors: ['rp', 'browser'],
-                        speechBrowser: "I securely signed the KB-JWT with my temporary private key.",
+                        speechBrowser: "I securely signed the KB-JWT with my temporary Ed25519 / P-256 private key.",
                         speechIdP: "",
                         speechRP: "The hash matches perfectly. And the signature proves the Browser owns the key. No tampering detected!",
                         arrowPath: "rp-internal",
                         codeTitle: "Key Binding Verification",
-                        codeSnippet: "<div class=\"w-full text-left\">\n// 1. Verify Browser Signature\nverifySignature(KB_JWT, cnf.jwk);\n\n// 2. Verify Data Integrity\nlet hash = SHA256(EVT + \"~\");\nassert(hash === KB_JWT.sd_hash);\n\n> SUCCESS: Integrtiy Confirmed\n</div>"
+                        codeSnippet: "<div class=\"w-full text-left\">\n// 1. Verify Browser Holder Signature (EdDSA or ES256)\nverifySignature(KB_JWT, cnf.jwk);\n\n// 2. Verify Data Integrity\nlet hash = SHA256(EVT + \"~\");\nassert(hash === KB_JWT.sd_hash);\n\n> SUCCESS: Integrity Confirmed\n</div>"
                     },
                     {
                         id: 4,
                         title: "Step 04: Validate DNS Record",
                         summary: "The server confirms that demo-mail.com actually owns the authority to verify @demo-mail.com addresses.",
-                        detail: "Queries `TXT _email-verification.demo-mail.com` in DNS to confirm it delegates to `accounts.demo-mail.com`.",
+                        detail: "Queries `TXT _email-verification.demo-mail.com` in DNS to confirm its `iss=` record delegates authority to `https://accounts.demo-mail.com`.",
                         activeActors: ['rp', 'idp'],
                         speechBrowser: "",
-                        speechIdP: "The DNS registry officially points to accounts.demo-mail.com.",
+                        speechIdP: "The DNS registry officially points to iss=https://accounts.demo-mail.com.",
                         speechRP: "I need to ask DNS who officially handles verification for @demo-mail.com.",
                         arrowPath: "rp-to-idp",
                         codeTitle: "DNS TXT Query",
-                        codeSnippet: "<div class=\"w-full text-left\">\n$ dig TXT _email-verification.demo-mail.com\n\n;; ANSWER SECTION:\n_email-verification.demo-mail.com. 300 IN TXT \\\n    \"accounts.demo-mail.com\"\n</div>"
+                        codeSnippet: "<div class=\"w-full text-left\">\n$ dig TXT _email-verification.demo-mail.com\n\n;; ANSWER SECTION:\n_email-verification.demo-mail.com. 300 IN TXT \\\n    \"iss=https://accounts.demo-mail.com\"\n</div>"
                     },
                     {
                         id: 5,
                         title: "Step 05: Fetch Issuer's Public Keys",
-                        summary: "The server locates the official public signing keys for demo-mail.com.",
-                        detail: "Queries `https://accounts.demo-mail.com/.well-known/email-verification` to retrieve the `jwks_uri` link pointing to the public key set.",
+                        summary: "The server locates the official EdDSA (Ed25519) & ES256 (P-256) public signing keys for demo-mail.com.",
+                        detail: "Queries `https://accounts.demo-mail.com/.well-known/email-verification` to retrieve the `jwks_uri` link pointing to the public key set (`EdDSA` / `ES256`).",
                         activeActors: ['rp', 'idp'],
                         speechBrowser: "",
-                        speechIdP: "Here are my official public keys.",
+                        speechIdP: "Here are my official Ed25519 (EdDSA) & P-256 (ES256) public keys.",
                         speechRP: "Fetching the official public keys directly from accounts.demo-mail.com.",
                         arrowPath: "idp-to-rp",
-                        codeTitle: "JWKS Server Response",
-                        codeSnippet: "<div class=\"w-full text-left\">\n{\n  \"keys\": [\n    {\n      \"kty\": \"RSA\",\n      \"kid\": \"demo-mail-key-1\",\n      \"use\": \"sig\",\n      \"n\": \"vXk8...\",\n      \"e\": \"AQAB\"\n    }\n  ]\n}\n</div>"
+                        codeTitle: "JWKS Server Response (EdDSA & ES256)",
+                        codeSnippet: "<div class=\"w-full text-left\">\n{\n  \"keys\": [\n    {\n      \"kty\": \"OKP\",\n      \"crv\": \"Ed25519\",\n      \"alg\": \"EdDSA\",\n      \"use\": \"sig\",\n      \"x\": \"11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo\"\n    },\n    {\n      \"kty\": \"EC\",\n      \"crv\": \"P-256\",\n      \"alg\": \"ES256\",\n      \"kid\": \"demo-mail-es256-1\",\n      \"use\": \"sig\",\n      \"x\": \"f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU\",\n      \"y\": \"x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0\"\n    }\n  ]\n}\n</div>"
                     },
                     {
                         id: 6,
                         title: "Step 06: Verify the Issuer's Signature",
-                        summary: "The server verifies demo-mail.com's official signature on the EVT.",
-                        detail: "Downloads the public keys from the JWKS URI and verifies the cryptographic signature on the EVT, completing the verification.",
+                        summary: "The server verifies demo-mail.com's official signature on the EVT (prioritizing kid match or iterating all JWKS keys for Gmail compatibility).",
+                        detail: "Prioritizes keys matching `EVT.header.kid` when present, and falls back to iterating through all candidate keys in `jwks.keys` when `kid` is omitted (as Gmail does in Chrome 154+).",
                         activeActors: ['rp', 'idp'],
                         speechBrowser: "",
-                        speechIdP: "I originally signed this EVT.",
-                        speechRP: "The signature matches the public key! Alice's email is successfully verified.",
+                        speechIdP: "I originally signed this EVT (with or without a kid header).",
+                        speechRP: "The signature matches an authoritative public key! Alice's email is verified.",
                         arrowPath: "rp-success",
-                        codeTitle: "Final Cryptographic Verification",
-                        codeSnippet: "<div class=\"w-full text-left\">\n// 1. Find matching IdP public key\nlet key = jwks.keys.find(k => k.kid === EVT.kid);\n\n// 2. Verify IdP Signature on EVT\nlet isValid = verifySignature(EVT, key);\n\nif (isValid) {\n  loginUser(\"alice@demo-mail.com\");\n}\n\n> AUTHENTICATED \u2705\n</div>"
+                        codeTitle: "Final Cryptographic Verification (Optional kid)",
+                        codeSnippet: "<div class=\"w-full text-left\">\n// 1. Prioritize kid match, or loop all JWKS keys (Gmail omits kid)\nconst candidates = EVT.kid\n  ? [...jwks.keys.filter(k => k.kid === EVT.kid), ...jwks.keys.filter(k => k.kid !== EVT.kid)]\n  : jwks.keys;\n\n// 2. Verify IdP Signature on EVT (EdDSA or ES256)\nconst isValid = candidates.some(key => verifySignature(EVT, key));\nif (isValid) loginUser(EVT.email);\n\n> AUTHENTICATED \u2705\n</div>"
                     }
                 ];
 

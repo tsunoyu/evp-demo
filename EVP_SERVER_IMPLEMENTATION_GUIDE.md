@@ -1169,10 +1169,11 @@ router.post('/verify', async (req: Request, res: Response): Promise<void> => {
 
     if (
       !email ||
-      email.trim().toLowerCase() !== tokenEmail.trim().toLowerCase()
+      !tokenEmail ||
+      email.trim() !== tokenEmail.trim()
     ) {
       throw new Error(
-        `Email mismatch: Submitted "${email}", Token contained "${tokenEmail}"`
+        `Email mismatch (Chrome 156+ enforces exact email case preservation): Submitted "${email}", Token contained "${tokenEmail}"`
       );
     }
     if (emailVerifiedClaim !== true) {
@@ -1224,61 +1225,68 @@ router.post('/verify', async (req: Request, res: Response): Promise<void> => {
     // If issuer domain matches email domain, delegation is implicit
     if (emailDomain.toLowerCase() === issuerHost.toLowerCase()) {
       isDelegated = true;
-      authorizedBy = 'Direct Domain Equality (Self-Authoritative)';
+      authorizedBy = 'Implicit (Issuer domain matches email domain)';
     } else {
-      let dnsTxtRecords: string[][] = [];
       try {
-        dnsTxtRecords = await dns.resolveTxt(dnsLookupTarget);
-      } catch (e: any) {
-        console.error(`DNS lookup failed for ${dnsLookupTarget}:`, e);
-      }
+        const txtRecords = await dns.resolveTxt(dnsLookupTarget);
+        const flatRecords = txtRecords.map((r) => r.join(''));
+        const expectedPrefix = `iss=${tokenIssuer}`;
 
-      isDelegated = dnsTxtRecords.some(record =>
-        record.some(str => str.includes(`iss=${issuerHost}`))
-      );
-      authorizedBy = 'DNS TXT Record Delegation';
+        if (
+          flatRecords.some(
+            (r) =>
+              r.toLowerCase() === expectedPrefix.toLowerCase() ||
+              r.toLowerCase() === `iss=${issuerHost.toLowerCase()}`
+          )
+        ) {
+          isDelegated = true;
+          authorizedBy = `DNS TXT record at ${dnsLookupTarget}`;
+        }
+      } catch (dnsErr: any) {
+        throw new Error(
+          `DNS lookup failed for ${dnsLookupTarget}: ${dnsErr.message}`
+        );
+      }
     }
 
     if (!isDelegated) {
       throw new Error(
-        `Domain ${emailDomain} has not delegated verification authority to issuer ${tokenIssuer}`
+        `Issuer ${tokenIssuer} is not authorized to issue tokens for @${emailDomain}`
       );
     }
 
-    steps.step3.outputs = { authorizedBy };
+    steps.step3.outputs = { isDelegated, authorizedBy };
     steps.step3.status = 'success';
 
     // =========================================================================
     // Step 4: Issuer Discovery & JWKS Fetching
     // =========================================================================
-    const discoveryUrl = `${tokenIssuer}/.well-known/email-verification`;
-    steps.step4.inputs = { url: discoveryUrl };
+    const wellKnownUrl = `${tokenIssuer.replace(/\/$/, '')}/.well-known/email-verification`;
+    steps.step4.inputs = { wellKnownUrl };
 
     let issuerMetadata: any;
     let issuerJWKS: any;
 
-    const knownIssuer = WELL_KNOWN_ISSUERS[tokenIssuer];
-    // Use hardcoded local issuer metadata and JWKS in local development to bypass proxy failures
-    if (knownIssuer && process.env.NODE_ENV !== 'production') {
-      issuerMetadata = knownIssuer.metadata;
-      issuerJWKS = knownIssuer.jwks;
+    // Check local fallback map first (bypasses corporate proxy hangs)
+    if (WELL_KNOWN_ISSUERS[tokenIssuer]) {
+      issuerMetadata = WELL_KNOWN_ISSUERS[tokenIssuer].metadata;
+      issuerJWKS = WELL_KNOWN_ISSUERS[tokenIssuer].jwks;
       steps.step4.outputs = {
-        message:
-          '[LOCAL BYPASS] Used local metadata and JWKS to avoid corporate network proxy blocks',
+        source: 'Local Hardcoded Fallback Map',
         issuerMetadata,
         issuerJWKS,
       };
     } else {
-      // Fetch well-known config from the Identity Provider (IdP)
-      const wellKnownRes = await fetch(discoveryUrl);
-      if (!wellKnownRes.ok) {
-        throw new Error(
-          `Failed to fetch issuer metadata from ${discoveryUrl}`
-        );
+      const metaRes = await fetch(wellKnownUrl);
+      if (!metaRes.ok) {
+        throw new Error(`Failed to fetch issuer metadata from ${wellKnownUrl}`);
       }
-      issuerMetadata = await wellKnownRes.json();
+      issuerMetadata = await metaRes.json();
 
-      // Fetch JWKS
+      if (!issuerMetadata.jwks_uri) {
+        throw new Error('Issuer metadata missing jwks_uri');
+      }
+
       const jwksRes = await fetch(issuerMetadata.jwks_uri);
       if (!jwksRes.ok) {
         throw new Error(
@@ -1307,20 +1315,23 @@ router.post('/verify', async (req: Request, res: Response): Promise<void> => {
     const data = Buffer.from(signingInput, 'utf8');
     const signature = Buffer.from(decodedEvt.parts[2], 'base64url');
 
+    // Prioritize kid-matching keys when present, then fall back to remaining JWKS keys (Gmail omits kid)
     const keysToTry = kid
-      ? issuerJWKS.keys.filter((k: any) => k.kid === kid)
+      ? [
+          ...issuerJWKS.keys.filter((k: any) => k.kid === kid),
+          ...issuerJWKS.keys.filter((k: any) => k.kid !== kid),
+        ]
       : issuerJWKS.keys;
 
     let signatureVerified = false;
     for (const jwk of keysToTry) {
       try {
         const publicKey = crypto.createPublicKey({ format: 'jwk', key: jwk });
-        signatureVerified = crypto.verify(
-          undefined,
-          data,
-          publicKey,
-          signature
-        );
+        const alg = jwk.alg || decodedEvt.header.alg || (jwk.kty === 'EC' ? 'ES256' : 'EdDSA');
+        signatureVerified =
+          alg === 'ES256'
+            ? crypto.verify('sha256', data, { key: publicKey, dsaEncoding: 'ieee-p1363' }, signature)
+            : crypto.verify(null, data, publicKey, signature);
         if (signatureVerified) {
           steps.step5.outputs = { verifiedKey: jwk };
           break;
@@ -1346,6 +1357,11 @@ router.post('/verify', async (req: Request, res: Response): Promise<void> => {
         'Missing ephemeral key binding (cnf.jwk) in SD-JWT payload'
       );
     }
+    if (ephemeralPublicKey.d) {
+      throw new Error(
+        'Security violation: cnf.jwk must not expose private key parameter "d"'
+      );
+    }
 
     steps.step6.inputs = {
       cnf: decodedEvt.payload.cnf,
@@ -1362,12 +1378,11 @@ router.post('/verify', async (req: Request, res: Response): Promise<void> => {
         format: 'jwk',
         key: ephemeralPublicKey,
       });
-      kbSignatureVerified = crypto.verify(
-        undefined,
-        kbData,
-        kbPublicKey,
-        kbSignature
-      );
+      const kbAlg = decodedKb.header.alg || ephemeralPublicKey.alg || (ephemeralPublicKey.kty === 'EC' ? 'ES256' : 'EdDSA');
+      kbSignatureVerified =
+        kbAlg === 'ES256'
+          ? crypto.verify('sha256', kbData, { key: kbPublicKey, dsaEncoding: 'ieee-p1363' }, kbSignature)
+          : crypto.verify(null, kbData, kbPublicKey, kbSignature);
     } catch (e: any) {
       throw new Error(`Failed to import ephemeral public key: ${e.message}`);
     }
